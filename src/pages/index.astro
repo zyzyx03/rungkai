@@ -1,0 +1,285 @@
+---
+import "../styles/global.css";
+import { ENVIRONMENTS } from "../lib/envs.js";
+import { MAN_PAGE_ICON, EXTERNAL_ICON } from "../lib/icons.js";
+import { SAMPLE_GROUPS } from "../lib/examples.js";
+import EnvGlyph from "../components/EnvGlyph.astro";
+
+// A mark per picker row; el9 is labelled rocky/alma/rhel and gets the Rocky peak.
+const GLYPHS = {
+  all: "all",
+  "ubuntu/24.04": "ubuntu",
+  el9: "rocky",
+  "alpine/3.22": "alpine",
+};
+const glyphFor = (id) => GLYPHS[id] ?? "all";
+
+const exampleHref = (cmd, env) =>
+  `/?cmd=${encodeURIComponent(cmd)}${env ? `&env=${encodeURIComponent(env)}` : ""}`;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rungkai — a command line, read like a man page</title>
+    <meta name="description" content="Break a shell one-liner into tokens, route each documented flag to the man page that defines it, and see exactly where the documentation ends." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 50 50%22%3E%3Crect width=%2250%22 height=%2250%22 rx=%2211%22 fill=%22%2316171f%22/%3E%3Cpath d=%22M15 6 35 6 44 25 35 44 15 44 6 25Z%22 fill=%22none%22 stroke=%22%2338bdf8%22 stroke-width=%223%22 stroke-linejoin=%22round%22/%3E%3Cpath d=%22M21 18 28 25 21 32%22 fill=%22none%22 stroke=%22%2338bdf8%22 stroke-width=%223.6%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E" />
+    <link rel="preload" href="/fonts/Orbitron.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/UbuntuSans-normal-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <script is:inline>
+      if (new URLSearchParams(location.search).get("cmd")) {
+        document.documentElement.dataset.initialCommand = "";
+      }
+    </script>
+  </head>
+  <body class="min-h-screen font-sans text-ink antialiased">
+    <main class="mx-auto max-w-[1080px] px-6 pb-24">
+      <section class="pt-12 pb-7 text-center">
+        <div class="flex items-center justify-center gap-2">
+          <svg class="seal text-ink" viewBox="7 14 114 98" aria-hidden="true" focusable="false">
+            <g class="seal-half seal-half-left"><path d="M39 18 11 38v47l28 23V18Z" /></g>
+            <g class="seal-half seal-half-right"><path d="M89 18l28 20v47l-28 23V18Z" /></g>
+            <g class="seal-face text-cyan"><path d="m47 53 8 9-8 9" /><path d="M60 73h8" /><path d="m81 53-8 9 8 9" /></g>
+          </svg>
+          <h1 class="font-display text-[clamp(2.15rem,4.6vw,3rem)] font-bold uppercase leading-none tracking-[0.04em] text-ink">rungkai<span class="text-cyan">.</span></h1>
+        </div>
+        <p class="mx-auto mt-5 text-[17px] leading-snug text-ink">Understand every part of your command.</p>
+        <p class="mx-auto mt-1.5 text-[15px] leading-snug text-ink-muted">Trace each token back to its documentation.</p>
+      </section>
+
+      <div class="mx-auto max-w-[900px]">
+      <div class="relative mb-2.5 w-fit" id="mode-picker">
+        <button id="mode-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="mode-menu" data-mode="explain" class="mode-trigger">
+          <svg class="icon-explain mode-trigger-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <rect x="1.8" y="3" width="12.4" height="10" rx="1.6" stroke="currentColor" stroke-width="1.2" />
+            <path d="M4.6 6.6 6.8 8.4 4.6 10.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M8.4 10.4h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+          </svg>
+          <svg class="icon-suggest mode-trigger-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 2.2 9.5 6 13.3 7.5 9.5 9 8 12.8 6.5 9 2.7 7.5 6.5 6Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
+            <path d="M12.4 11.2 12.9 12.6 14.3 13.1 12.9 13.6 12.4 15 11.9 13.6 10.5 13.1 11.9 12.6Z" fill="currentColor" />
+          </svg>
+          <span id="mode-label">explain</span>
+          <svg class="mode-trigger-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div id="mode-menu" class="mode-menu glass" role="listbox" aria-label="Input mode" hidden>
+          <p class="mode-menu-title">Input mode</p>
+          <p class="mode-menu-hint">Choose what this box does with your text.</p>
+          <button type="button" role="option" data-mode="explain" aria-selected="true" class="mode-option">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <svg class="mode-option-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <rect x="1.8" y="3" width="12.4" height="10" rx="1.6" stroke="currentColor" stroke-width="1.2" />
+              <path d="M4.6 6.6 6.8 8.4 4.6 10.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M8.4 10.4h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+            </svg>
+            <span>
+              <span class="mode-option-title">Explain</span>
+              <span class="mode-option-desc">Paste a command. Every word in it is matched to the page that defines it.</span>
+            </span>
+          </button>
+          <button type="button" role="option" data-mode="suggest" aria-selected="false" class="mode-option">
+            <span class="mode-dot" aria-hidden="true"></span>
+            <svg class="mode-option-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 2.2 9.5 6 13.3 7.5 9.5 9 8 12.8 6.5 9 2.7 7.5 6.5 6Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
+              <path d="M12.4 11.2 12.9 12.6 14.3 13.1 12.9 13.6 12.4 15 11.9 13.6 10.5 13.1 11.9 12.6Z" fill="currentColor" />
+            </svg>
+            <span>
+              <span class="mode-option-title">Suggest</span>
+              <span class="mode-option-desc">Write what you want to do. The model checks the man pages and hands you one command that does it.</span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <form id="explain-form" role="search" class="glass neon-frame flex items-center gap-3 rounded-[10px] p-2">
+        <label for="cmd" id="prompt" class="pl-2 font-mono text-[13.5px] text-ink-dim">$</label>
+        <input id="cmd" name="cmd" type="text" autocomplete="off" spellcheck="false" placeholder="Paste a command to explain…" aria-label="Command line" class="field py-2 text-[13.5px]" />
+        <button id="clear" type="button" title="Clear the field and go home (Esc)" aria-label="Clear the field and go home (Esc)" class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-ink-dim transition-colors hover:bg-ink/5 hover:text-ink">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="h-3.5 w-3.5" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <button id="explain" type="submit" title="Explain (press Enter)" aria-label="Explain (press Enter)" class="grid h-9 w-9 shrink-0 place-items-center rounded-[6px] border border-cyan/35 text-cyan transition-colors hover:border-cyan hover:bg-cyan hover:text-paper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M20 5v7a4 4 0 0 1-4 4H6"/><path d="m10 12-4 4 4 4"/></svg>
+        </button>
+      </form>
+
+      <div class="mt-3 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+        <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 font-mono text-[12.5px] text-ink-dim">
+          <span class="sr-only" id="env-caption">Target environment</span>
+          <span class="relative inline-block" id="env-picker">
+            <button id="env-button" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="env-menu" aria-labelledby="env-caption env-label" class="flex cursor-pointer items-center gap-1.5 rounded-[4px] bg-ink/5 py-1 pl-2 pr-3 font-mono text-[12.5px] text-ink outline-none transition-colors hover:bg-ink/10">
+              <EnvGlyph name={glyphFor("all")} class="h-3 w-3 text-ink-muted" />
+              <span id="env-label">all</span>
+            </button>
+            <svg class="pointer-events-none absolute right-0 top-1/2 h-2.5 w-2.5 -translate-y-1/2 text-ink-dim" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            <ul id="env-menu" role="listbox" aria-label="Target environment" hidden class="glass absolute left-0 top-full z-30 mt-1.5 min-w-[200px] rounded-[4px] border border-ink/15 p-1">
+              {ENVIRONMENTS.map((e) => (
+                <li role="option" tabindex="0" data-env={e.id} aria-selected={e.id === "all" ? "true" : "false"} class="flex cursor-pointer items-center gap-2 rounded-[2px] px-2 py-1.5 font-mono text-[12.5px] text-ink-muted transition-colors hover:bg-ink/10 hover:text-ink focus:bg-ink/10 focus:text-ink focus:outline-none">
+                  <EnvGlyph name={glyphFor(e.id)} class="h-3 w-3 shrink-0 text-ink-muted" />
+                  <span data-env-label>{e.label}</span>
+                </li>
+              ))}
+            </ul>
+          </span>
+          <span aria-hidden="true">·</span>
+          <span class="text-ink-muted">Grounded in man pages</span>
+          <button id="undo" type="button" hidden class="link">undo change</button>
+        </div>
+        <div class="flex items-baseline gap-4">
+          <div class="flex items-baseline gap-2 font-mono text-[12.5px] text-ink-muted" id="status" aria-live="polite">
+            <span class="inline-block h-1.5 w-1.5 bg-ink-dim" id="status-dot" aria-hidden="true"></span>
+            <span id="status-text">Ready when you are</span>
+          </div>
+          <kbd id="esc-hint" class="kbd-cap" aria-hidden="true" hidden>esc</kbd>
+          <button id="new-command" type="button" hidden class="link">new command</button>
+        </div>
+      </div>
+      <script is:inline>
+        // Run during parsing so the command toolbar does not paint its
+        // landing defaults while the module and explanation are loading.
+        {
+          const params = new URLSearchParams(location.search);
+          const cmd = params.get("cmd");
+          if (cmd) {
+            document.getElementById("cmd").value = cmd;
+            document.getElementById("new-command").hidden = false;
+            document.getElementById("esc-hint").hidden = false;
+            try {
+              const status = JSON.parse(sessionStorage.getItem("rungkai:command-status"));
+              if (status?.cmd === cmd && status.env === (params.get("env") || "all")) {
+                document.getElementById("status-text").textContent = status.text;
+                document.getElementById("status-dot").className = status.dot;
+                document.getElementById("status").dataset.restored = "";
+              }
+            } catch {
+              // Continue with the live status if session storage is unavailable.
+            }
+          }
+        }
+      </script>
+      <div id="suggestion" class="glass neon-frame mt-4 rounded-[10px] p-4" hidden>
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <p class="label flex items-center gap-1.5"><span id="suggestion-label">suggested command</span>
+            <span class="ai-mark-wrap" title="The model's words"><svg class="ai-mark" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.2 9.5 6 13.3 7.5 9.5 9 8 12.8 6.5 9 2.7 7.5 6.5 6Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" /><path d="M12.4 11.2 12.9 12.6 14.3 13.1 12.9 13.6 12.4 15 11.9 13.6 10.5 13.1 11.9 12.6Z" fill="currentColor" /></svg></span>
+          </p>
+          <div id="suggestion-meta" class="flex items-center gap-1.5">
+            <span id="suggestion-basis" class="font-mono text-[12.5px] text-ink-dim">new command</span>
+            <button id="suggestion-toggle" type="button" class="-m-1 grid h-7 w-7 place-items-center rounded-[4px] text-ink-dim transition-colors hover:bg-ink/5 hover:text-ink"
+                    title="Fold the reasoning away" aria-label="Fold the reasoning away" aria-expanded="true">
+              <svg class="suggestion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
+            </button>
+            <button id="suggestion-dismiss" type="button" class="-m-1 grid h-7 w-7 place-items-center rounded-[4px] text-ink-dim transition-colors hover:bg-ink/5 hover:text-ink"
+                    title="Dismiss the suggestion" aria-label="Dismiss the suggestion">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="h-3 w-3" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+          </div>
+        </div>
+        <div class="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <code id="suggestion-command" class="break-words font-mono text-[13.5px] text-ink"></code>
+          <div id="suggestion-buttons" class="flex shrink-0 items-center gap-2">
+            <button id="suggestion-again" type="button" class="btn-ghost rounded-sm">ask again</button>
+            <button id="suggestion-copy" type="button" class="btn-ghost rounded-sm">copy</button>
+            <button id="suggestion-explain" type="button" class="btn-neon">explain</button>
+          </div>
+        </div>
+        <p id="suggestion-ground" class="mt-2 font-mono text-[12.5px] text-ink-dim"></p>
+        <p id="suggestion-rationale" class="mt-3 max-w-[68ch] text-[14px] leading-[1.7] text-ink-muted"></p>
+        <p id="suggestion-assumed" class="mt-2 text-[12.5px] italic text-ink-dim"></p>
+      </div>
+      </div>
+
+      <div id="workspace-view">
+      <section class="mx-auto mt-14 max-w-[900px]" id="examples" aria-labelledby="examples-heading">
+        <h2 id="examples-heading" class="m-0 text-[26px] font-semibold leading-tight text-ink">Try an example</h2>
+        <p class="mt-2 text-[15px] text-ink-muted">Choose a category, then select a command.</p>
+
+        <div class="cat-tabs mt-7" role="tablist" aria-label="Example categories">
+          {SAMPLE_GROUPS.map((group, i) => (
+            <button type="button" role="tab" data-cat={group.id} aria-selected={i === 0 ? "true" : "false"} aria-controls={`cat-${group.id}`} class="cat-tab">
+              <EnvGlyph name={group.glyph} class="h-4 w-4" />
+              <span>{group.tab}</span>
+            </button>
+          ))}
+        </div>
+
+        {SAMPLE_GROUPS.map((group, i) => (
+          <section class="cat-panel mt-4" data-cat={group.id} id={`cat-${group.id}`} role="tabpanel" aria-labelledby={`tab-${group.id}`} hidden={i !== 0}>
+            <div class="cat-head">
+              <div class="min-w-0">
+                <h3 class="cat-title" id={`tab-${group.id}`}>{group.tab}</h3>
+                <p class="cat-desc">{group.desc}</p>
+              </div>
+              <span class="cat-count">{group.commands.length} {group.commands.length === 1 ? "example" : "examples"}</span>
+            </div>
+            <ul class="cat-list">
+              {group.commands.map((item) => (
+                <li class="ex-row">
+                  <div class="min-w-0">
+                    <span class="ex-row-label">{item.label}</span>
+                    <a
+                      class="ex-row-cmd"
+                      href={exampleHref(item.cmd, group.env)}
+                      data-cmd={item.cmd}
+                      data-env={group.env}
+                    >{item.cmd}</a>
+                  </div>
+                  <button type="button" class="ex-go" data-cmd={item.cmd} data-env={group.env} aria-label={`Explain ${item.cmd}`}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </section>
+
+
+      <div class="results mx-auto mt-9 w-full max-w-[900px]" id="results" hidden>
+        <button id="tldr-button" type="button" class="tldr-button" aria-expanded="false" aria-controls="tldr"
+                title="Ask the model what this command does">
+          <span>What does this actually do?</span>
+          <span class="ai-mark-wrap" title="The model's words"><svg class="ai-mark" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.2 9.5 6 13.3 7.5 9.5 9 8 12.8 6.5 9 2.7 7.5 6.5 6Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" /><path d="M12.4 11.2 12.9 12.6 14.3 13.1 12.9 13.6 12.4 15 11.9 13.6 10.5 13.1 11.9 12.6Z" fill="currentColor" /></svg></span>
+        </button>
+        <div id="tldr" class="tldr" hidden>
+          <p class="tldr-head">
+            <span class="tldr-label">in plain english</span>
+            <span class="ai-mark-wrap" title="The model's words"><svg class="ai-mark" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2.2 9.5 6 13.3 7.5 9.5 9 8 12.8 6.5 9 2.7 7.5 6.5 6Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" /><path d="M12.4 11.2 12.9 12.6 14.3 13.1 12.9 13.6 12.4 15 11.9 13.6 10.5 13.1 11.9 12.6Z" fill="currentColor" /></svg></span>
+          </p>
+          <p id="tldr-danger" class="tldr-danger" hidden></p>
+          <p id="tldr-text" class="tldr-text"></p>
+        </div>
+        <div class="explain-col">
+          <p id="synopsis" class="synopsis whitespace-pre-wrap break-words font-mono text-[13.5px] leading-[2.05] text-ink sm:text-center sm:text-[15px] sm:[word-spacing:8px]"></p>
+
+          <div class="mt-8 sm:px-[120px]" id="cards"></div>
+
+          <div class="mt-8 text-[14px] leading-relaxed text-ink-muted" id="empty">
+            <p><span class="text-ink">Nothing explained yet.</span> Paste a one-liner or pick an example. Documented tokens get a line routed into the nearest margin to their entry; anything without a page is marked in red rather than guessed at.</p>
+          </div>
+        </div>
+        <svg class="connectors" id="connectors" aria-hidden="true"></svg>
+        <svg class="connectors brackets" id="brackets" aria-hidden="true"></svg>
+      </div>
+      </div>
+
+      <footer class="mx-auto mt-20 flex max-w-[900px] flex-wrap items-center justify-end gap-3">
+        <nav class="flex flex-wrap items-center gap-3" aria-label="Man page sources">
+          <a class="source-chip" href="https://manpages.ubuntu.com/manpages/noble/" rel="noreferrer" target="_blank" aria-label="ubuntu 24.04 man pages">
+            <Fragment set:html={MAN_PAGE_ICON} />
+            <span>ubuntu 24.04</span>
+            <Fragment set:html={EXTERNAL_ICON} />
+          </a>
+          <a class="source-chip" href="https://man7.org/linux/man-pages/" rel="noreferrer" target="_blank" aria-label="man7.org man pages">
+            <Fragment set:html={MAN_PAGE_ICON} />
+            <span>man7.org</span>
+            <Fragment set:html={EXTERNAL_ICON} />
+          </a>
+        </nav>
+      </footer>
+    </main>
+
+    <script>
+      import "../client/app.js";
+    </script>
+  </body>
+</html>

@@ -1,0 +1,1 @@
+{"cmd":"lsattr","section":1,"source":"https://manpages.ubuntu.com/manpages/noble/en/man1/lsattr.1.html","options":[{"names":["-R"]},{"names":["-V"]},{"names":["-a"]},{"names":["-d"]},{"names":["-l"]},{"names":["-p"]},{"names":["-v"]},{"names":["-RVadlpv"]}],"values":{},"operands":[{"name":"files"}]}

@@ -1,0 +1,1 @@
+{"cmd":"kill","section":1,"source":"https://manpages.ubuntu.com/manpages/noble/en/man1/kill.1.html","options":[{"names":["-<signal>"]},{"names":["-s"]},{"names":["--signal"]},{"names":["-q","--queue"]},{"names":["-l","--list"]},{"names":["-L","--table"]},{"names":["-9","-SIGKILL"]}],"values":{"-q":"value","--queue":"value","-l":"signal","--list":"signal"},"operands":[]}

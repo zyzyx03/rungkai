@@ -1,0 +1,1 @@
+{"cmd":"printenv","section":1,"source":"https://manpages.ubuntu.com/manpages/noble/en/man1/printenv.1.html","options":[{"names":["-0","--null"]},{"names":["--help"]},{"names":["--version"]}],"values":{},"operands":[{"name":"VARIABLE"}]}

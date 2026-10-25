@@ -1,0 +1,34 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "dist/index.html",
+          "src/styles/global.css"
+        ],
+        "createdAt": "2026-10-25T04:49:56.833Z",
+        "reason": "Agent: the neon is the site's one accent \u2014 the frame, the focus ring, the connector bloom and the processing bar are the same light, mandated by DESIGN.md (Colors, Elevation & Depth, Connector, Plain English)"
+      },
+      {
+        "rule": "em-dash-overuse",
+        "value": "*",
+        "files": [
+          "dist/index.html"
+        ],
+        "createdAt": "2026-10-25T04:49:56.843Z",
+        "reason": "Agent: the rule counts -- inside CLI flag names (--format, --tail) in the sample commands, not prose"
+      }
+    ]
+  },
+  "hook": {
+    "enabled": true,
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
+  }
+}

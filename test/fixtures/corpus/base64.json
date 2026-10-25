@@ -1,0 +1,1 @@
+{"cmd":"base64","section":1,"source":"https://manpages.ubuntu.com/manpages/noble/en/man1/base64.1.html","options":[{"names":["-d","--decode"]},{"names":["-i","--ignore-garbage"]},{"names":["-w","--wrap"]},{"names":["--help"]},{"names":["--version"]}],"values":{"-w":"COLS","--wrap":"COLS"},"operands":[{"name":"FILE"}]}

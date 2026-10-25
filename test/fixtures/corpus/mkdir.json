@@ -1,0 +1,1 @@
+{"cmd":"mkdir","section":1,"source":"https://manpages.ubuntu.com/manpages/noble/en/man1/mkdir.1.html","options":[{"names":["-m","--mode"]},{"names":["-p","--parents"]},{"names":["-v","--verbose"]},{"names":["-Z"]},{"names":["--context"]},{"names":["--help"]},{"names":["--version"]}],"values":{"-m":"MODE","--mode":"MODE","--context":"CTX"},"operands":[{"name":"DIRECTORY"}]}

@@ -1,0 +1,1 @@
+{"cmd":"echo","section":1,"source":"https://manpages.ubuntu.com/manpages/noble/en/man1/echo.1.html","options":[{"names":["-n"]},{"names":["-e"]},{"names":["-E"]},{"names":["--help"]},{"names":["--version"]}],"values":{},"operands":[{"name":"SHORT-OPTION"},{"name":"STRING"},{"name":"LONG-OPTION"}]}

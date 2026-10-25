@@ -1,0 +1,1 @@
+{"cmd":"tr","section":1,"source":"https://manpages.ubuntu.com/manpages/noble/en/man1/tr.1.html","options":[{"names":["-c","-C","--complement"]},{"names":["-d","--delete"]},{"names":["-s","--squeeze-repeats"]},{"names":["-t","--truncate-set1"]},{"names":["--help"]},{"names":["--version"]}],"values":{},"operands":[{"name":"STRING1"},{"name":"STRING2"}]}

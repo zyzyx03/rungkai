@@ -1,0 +1,79 @@
+// Push one Corpus to R2. node ingest/upload.mjs ubuntu/24.04 .corpus/noble/pages [--local]
+import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const envId = process.argv[2] ?? "ubuntu/24.04";
+const dir = process.argv[3] ?? ".corpus/noble/pages";
+const local = process.argv.includes("--local");
+const wrangler = "node_modules/.bin/wrangler";
+const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+
+const BUCKET = "rungkai-corpus";
+
+// The dev server serves its local R2 over this API. One request per page
+// instead of one wrangler process per page: the CLI takes a couple of
+// seconds a file, which is about half an hour for a full Ubuntu corpus, and
+// this is seconds.
+const DEV_API = process.env.RUNGKAI_DEV_URL ?? "http://localhost:8787";
+
+const devApiAvailable = async () => {
+  try {
+    const res = await fetch(`${DEV_API}/cdn-cgi/local/explorer/api/r2/buckets`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+};
+
+const putDev = async (key, body) => {
+  const url = `${DEV_API}/cdn-cgi/local/explorer/api/r2/buckets/${BUCKET}/objects/${encodeURIComponent(key)}`;
+  const res = await fetch(url, { method: "PUT", headers: { "content-type": "application/json" }, body });
+  if (!res.ok) throw new Error(`${res.status} ${key}`);
+};
+
+// Only the local store has the dev server's API; a remote bucket goes
+// through the wrangler CLI, which talks to R2 over the network.
+const useDevApi = local && (await devApiAvailable());
+if (local && !useDevApi) {
+  console.log(`no dev server on ${DEV_API}, falling back to the wrangler CLI (slow)`);
+}
+
+// The corpus is a few thousand files and each wrangler call takes a moment,
+// so they go in parallel. The local R2 store is one sqlite file: keep the
+// pool small enough that two writers do not collide.
+const POOL = 8;
+let done = 0;
+let failed = 0;
+let next = 0;
+
+async function worker() {
+  while (next < files.length) {
+    const file = files[next++];
+    const key = `${envId}/${file}`;
+    const args = ["r2", "object", "put", `${BUCKET}/${key}`, "--file", join(dir, file), ...(local ? ["--local"] : [])];
+    // The local store is one sqlite file: two writers can collide, so a
+    // failure is tried once more on its own.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        if (useDevApi) await putDev(key, readFileSync(join(dir, file)));
+        else execFileSync(wrangler, args, { stdio: "ignore" });
+        break;
+      } catch (error) {
+        if (attempt) {
+          failed += 1;
+          console.warn(`failed ${file}: ${error.message.split("\n")[0]}`);
+        }
+      }
+    }
+    done += 1;
+    if (done % 100 === 0) console.log(`${done}/${files.length}`);
+  }
+}
+
+await Promise.all(Array.from({ length: POOL }, worker));
+console.log(`uploaded ${done - failed}/${files.length} to ${BUCKET}/${envId}${local ? " (local)" : ""}`);
+console.log("bump CORPUS_VERSION in wrangler.jsonc so the explainer cache turns over");
+if (local) console.log("clear .wrangler/state/v3/cache and restart wrangler dev so the cache turns over too");
+
+

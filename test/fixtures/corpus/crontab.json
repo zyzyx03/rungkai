@@ -1,0 +1,1 @@
+{"cmd":"crontab","section":1,"source":"https://manpages.ubuntu.com/manpages/noble/en/man1/crontab.1.html","options":[{"names":["-h"]},{"names":["-u"]},{"names":["-n"]},{"names":["-l"]},{"names":["-r"]},{"names":["-e"]},{"names":["-i"]}],"values":{},"operands":[{"name":"file"}]}

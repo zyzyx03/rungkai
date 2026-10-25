@@ -1,0 +1,1 @@
+{"cmd":"docker-ps","section":1,"source":"https://docs.docker.com/engine/reference/commandline/ps/","options":[{"names":["-a","--all"]},{"names":["-f","--filter"]},{"names":["--format"]},{"names":["-n","--last"]},{"names":["-l","--latest"]},{"names":["--no-trunc"]},{"names":["-q","--quiet"]},{"names":["-s","--size"]}],"values":{},"operands":[]}

@@ -1,0 +1,1 @@
+{"cmd":"nice","section":1,"source":"https://manpages.ubuntu.com/manpages/noble/en/man1/nice.1.html","options":[{"names":["-n","--adjustment"]},{"names":["--help"]},{"names":["--version"]}],"values":{"-n":"N","--adjustment":"N"},"operands":[{"name":"COMMAND"}]}

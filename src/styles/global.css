@@ -1,0 +1,877 @@
+/* Self-hosted, same faces as fauzuwan.my — no external font requests. */
+@font-face {
+  font-family: "Ubuntu Sans";
+  src: url("/fonts/UbuntuSans-normal-latin.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Ubuntu Sans";
+  src: url("/fonts/UbuntuSans-italic-latin.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: italic;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304,
+    U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Orbitron";
+  src: url("/fonts/Orbitron.woff2") format("woff2");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+html { color-scheme: dark; view-transition-name: none; }
+#workspace-view { view-transition-name: workspace; }
+html[data-initial-command] #examples { display: none; }
+html[data-initial-command] #workspace-view { min-height: 300px; }
+/* Command controls belong to the open command, so show them before the
+   client script and explanation response arrive on a refresh. */
+html[data-initial-command] :is(#new-command, #esc-hint) { display: inline-block !important; }
+html[data-initial-command] #status:not([data-restored]) { visibility: hidden; }
+::view-transition-group(workspace) { animation-duration: 260ms; animation-timing-function: ease-in-out; }
+::view-transition-old(workspace) { animation: view-out 180ms ease-out both; }
+::view-transition-new(workspace) { animation: view-in 260ms ease-out both; }
+@keyframes view-out { to { opacity: 0; } }
+@keyframes view-in { from { opacity: 0; } }
+
+:root {
+  /* The diagram's spacing. These mirror the spacing tokens in DESIGN.md, and
+     the connector reads them, so the geometry and the layout cannot drift
+     apart. */
+  --routing-band: 140px;
+  --lane: 22px;
+}
+
+body {
+  /* The floating command is as wide as the window, and the window is wider
+     than the page by the width of its scrollbar: the page is clipped rather
+     than given a scrollbar of its own. */
+  overflow-x: hidden;
+  /* Tokyo Night page wash, same stops as the blog. */
+  background-color: #16171f;
+  background-image:
+    radial-gradient(circle at 30% 18%, rgba(122, 162, 247, 0.08), transparent 40%),
+    radial-gradient(circle at 68% 12%, rgba(187, 154, 247, 0.06), transparent 40%),
+    linear-gradient(180deg, #16171f 0%, #1a1b26 20%, #181921 55%, #16171f 100%);
+  background-attachment: fixed;
+  overflow-y: scroll;
+}
+
+::selection { background: rgba(122, 162, 247, 0.9); color: #16171f; }
+
+:focus-visible { outline: 2px solid #7aa2f7; outline-offset: 3px; }
+
+[hidden] { display: none !important; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+* { scrollbar-width: thin; scrollbar-color: rgba(169, 177, 214, 0.22) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: rgba(169, 177, 214, 0.2); border-radius: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Token-to-entry routing: an SVG overlay inside .results. */
+.results { position: relative; }
+/* The plain-English panel, the button that opens it, and the command they
+   are about are three things, and the command gets its own air: the answer
+   ends, then the diagram it belongs to begins. */
+.explain-col { width: 100%; margin-top: 1.5rem; }
+.connectors {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: visible;
+}
+.connectors path {
+  fill: none;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  /* The hover glow grows the wire rather than switching it. */
+  transition: stroke-width 0.16s ease;
+}
+.connectors circle { stroke: none; }
+/* The bracket is 1.4px wide; an invisible stroke just over it is what a click
+   lands on. It hugs the bracket, so a click on the empty page still falls
+   through to the page. */
+.connectors .route-hit { stroke: transparent; stroke-width: 10; pointer-events: stroke; cursor: pointer; }
+@media (max-width: 639px) {
+  .connectors { display: none; }
+  /* No SVG bracket below 640px, so the token's own colour carries the role. */
+  .token { color: var(--token-color); }
+}
+@media (min-width: 640px) {
+  /* explainshell's routing band: the gap the connectors fan out through. */
+  .results.has-entries #cards { margin-top: var(--routing-band); }
+}
+
+/* The synopsis is the command printed as a synopsis: the band the routing
+   hangs from, held by space alone. It floats: as the entries scroll past,
+   the command and the routes from its tokens stay in sight, so the reader
+   never has to scroll back up to see which word a card belongs to. */
+.synopsis {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 10px 0 14px;
+  scroll-margin-top: 24px;
+}
+/* The panel is the page's own wash, barely there, blurred: the entries pass
+   under it rather than through it, and the wires show through it, so the
+   command and the entries it points at read as one thing. It runs the width
+   of the window, so it has no edge of its own to see. It is only there
+   once the command floats: above the entries, the command is just the
+   command. */
+.synopsis::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  background-color: rgba(23, 24, 33, 0.42);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  backdrop-filter: blur(14px) saturate(1.15);
+}
+.synopsis.is-floating::before { opacity: 1; }
+/* And the entries fade into it rather than stopping at it. */
+.synopsis::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  top: 100%;
+  height: var(--band, 34px);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  background: linear-gradient(180deg, rgba(23, 24, 33, 0.42), transparent);
+  pointer-events: none;
+}
+.synopsis.is-floating::after { opacity: 1; }
+/* The wire belongs to the page and passes under the floating command; the
+   bracket under a token belongs to the token and stays above it. */
+.connectors { z-index: 2; }
+.brackets { z-index: 4; }
+/* An entry that is scrolled to must not land under the floating command. */
+.entry { scroll-margin-top: 64px; }
+
+/* Keep a long argument and its connector inside the command's width. */
+.synopsis .token { max-width: 100%; overflow-wrap: anywhere; }
+/* Reserve space between wrapped rows for brackets and their hover glow.
+   Keep token boxes compact so the extra leading becomes clear space. */
+.synopsis.is-wrapped { line-height: 3.6; }
+.synopsis.is-wrapped .token { line-height: 2.05; }
+
+/* The command line reads first: each piece fades in left to right (--t is
+   its order in the command), the whole line settling in under half a second
+   before the routes finish drawing out of it. Opacity only — the routes
+   measure token rects for their geometry, so moving the tokens would move
+   the brackets. Shared links and refreshes use the same entrance. */
+.results.has-intro .synopsis * {
+  animation: token-in 0.34s ease-out both;
+  animation-delay: calc(var(--t, 0) * 24ms);
+}
+@keyframes token-in {
+  from { opacity: 0; }
+}
+/* Entries are man-page definitions: a term, its kind, a hanging
+   description, and the page it came from. */
+.entry {
+  background-color: color-mix(in srgb, var(--role, #7aa2f7) 7%, #1a1b26);
+  border-color: color-mix(in srgb, var(--role, #7aa2f7) 30%, transparent);
+}
+.results.has-intro .entry {
+  animation: entry-in 0.42s ease-out both;
+  animation-delay: calc(var(--i, 0) * 45ms + 0.72s);
+}
+@keyframes entry-in {
+  from { opacity: 0; }
+  /* No explicit `to`: an explicit one would freeze the entry at opacity 1
+     under `fill: both`, and the hover-dim in `.results.hovering` would
+     never reach it. */
+}
+.kind-tag {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--role, #7aa2f7) 34%, transparent);
+  border-radius: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--role, #7aa2f7);
+}
+.value-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--role, #7aa2f7) 70%, #a9b1d6);
+}
+.entry-body {
+  margin-top: 0.7rem;
+  padding-left: 1.5rem;
+  max-width: 68ch;
+  font-size: 15px;
+  line-height: 1.75;
+  color: #a9b1d6;
+}
+.entry-ref {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.9rem;
+  align-items: center;
+  margin-top: 1.1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  /* ink-soft: dim loses AA on the role-tinted entry panels. */
+  color: #8b93b8;
+}
+/* The source is a chip: a filled box with the man page's mark, so the
+   provenance reads as something you can open, not as another word. */
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(238, 240, 246, 0.06);
+  color: #a9b1d6;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+.source-chip:hover {
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+}
+.source-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
+.source-chip svg:last-child { width: 10px; height: 10px; opacity: 0.7; }
+.source-chip:hover svg:last-child { opacity: 0.9; }
+
+/* Hover isolates the pair, as explainshell.com does: every other token and
+   entry dims and blurs, and only the hovered route stays on the page. */
+.token, .entry {
+  transition: opacity .18s ease, filter .18s ease, background-color .18s ease, border-color .18s ease;
+}
+.results.hovering .token:not(.is-active) { opacity: .65; filter: blur(.3px); }
+.results.hovering .entry:not(.is-active) { opacity: .4; filter: blur(1.4px); }
+.token.is-active { color: var(--token-color); text-shadow: 0 0 12px var(--token-color); }
+.entry.is-active { background-color: color-mix(in srgb, var(--role, #7aa2f7) 15%, #202233); }
+.entry.is-flash { background-color: color-mix(in srgb, var(--role, #7aa2f7) 24%, #202233); }
+.connectors g { transition: opacity .18s ease, filter .18s ease; }
+.results.hovering .connectors g:not(.is-active) { opacity: 0; }
+.connectors g.is-active path { stroke-width: 2.4; stroke-opacity: 1; filter: drop-shadow(0 0 7px var(--path-color)); }
+.connectors g.is-active circle { filter: drop-shadow(0 0 7px var(--path-color)); }
+
+/* Frosted glass for the command slab. */
+#cmd { caret-color: #38bdf8; }
+.glass {
+  background-color: rgba(41, 46, 66, 0.62);
+  background-image: linear-gradient(180deg, rgba(238, 240, 246, 0.09), rgba(238, 240, 246, 0.02) 22%, transparent 55%);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  backdrop-filter: blur(20px) saturate(1.15);
+  border: 1px solid rgba(238, 240, 246, 0.16);
+  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(238, 240, 246, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* A region is the span a command substitution or a quoted word wraps
+   around its parts. It is not a control, only a grouping, and it is
+   marked the way the site marks a token: with a bracket, dropped deeper
+   than the parts' brackets so the nesting reads. It has no background, so
+   it needs no radius. */
+
+/* A keycap is a legend for a key, never a control: the way the blog shows
+   "/" in its search field. It sits beside the action it shortcuts. */
+.kbd-cap {
+  flex-shrink: 0;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid rgba(238, 240, 246, 0.14);
+  border-radius: 4px;
+  background: rgba(238, 240, 246, 0.05);
+  color: #a9b1d6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* The plain-English line: the model's own words, so it says so. It never
+   carries a citation — the citations belong to the breakdown below. */
+.tldr-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid rgba(238, 240, 246, 0.13);
+  border-radius: 6px;
+  background: transparent;
+  color: #a9b1d6;
+  font-family: Ubuntu Sans, Ubuntu, ui-sans-serif, sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+.tldr-button:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(56, 189, 248, 0.07);
+  color: #eef0f6;
+}
+.tldr-button[aria-expanded="true"] {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: rgba(56, 189, 248, 0.07);
+  color: #eef0f6;
+}
+.tldr-button:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+.tldr {
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.045);
+}
+.tldr-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+.tldr-label {
+  font-family: Orbitron, Ubuntu Sans, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #38bdf8;
+}
+/* The warning the model led with. A filled box in the signal colour, the
+   language of the source chip: this is the one thing on the page that is
+   about the command rather than about its parts. */
+.tldr-danger {
+  display: inline-block;
+  margin: 0.7rem 0 0;
+  padding: 0.18rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(247, 118, 142, 0.16);
+  color: #f7768e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.4;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+/* The suggestion panel is the slab's material and the slab's edge: the neon
+   hairline and its halo, the sheen, and no drop shadow — the slab floats, this
+   sits in the flow. */
+#suggestion {
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.06), 0 0 16px -8px rgba(56, 189, 248, 0.45), inset 0 1px 0 rgba(238, 240, 246, 0.1);
+}
+
+/* The panel folds to its command: the reasoning is the part the reader can
+   do without. Folded, it is one line — the label, the command, what it rests
+   on, the buttons. A note the reader has finished with should not take three
+   rows of the page. */
+#suggestion.is-collapsed #suggestion-rationale,
+#suggestion.is-collapsed #suggestion-assumed { display: none; }
+#suggestion.is-collapsed {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  padding: 0.5rem 0.75rem;
+}
+#suggestion.is-collapsed > div,
+#suggestion.is-collapsed #suggestion-meta { display: contents; }
+#suggestion.is-collapsed #suggestion-label { order: 1; }
+#suggestion.is-collapsed #suggestion-command { order: 2; }
+#suggestion.is-collapsed #suggestion-ground { order: 3; margin-top: 0; }
+/* The basis ("new command") is about how the suggestion was made; folded,
+   the reader wants the command and what it rests on. */
+#suggestion.is-collapsed #suggestion-basis { display: none; }
+#suggestion.is-collapsed #suggestion-buttons { order: 5; }
+#suggestion.is-collapsed #suggestion-toggle { order: 6; margin-left: auto; }
+#suggestion.is-collapsed #suggestion-dismiss { order: 7; }
+.suggestion-chevron {
+  width: 11px;
+  height: 11px;
+  transition: transform 0.18s ease;
+}
+#suggestion.is-collapsed .suggestion-chevron { transform: rotate(180deg); }
+.tldr-text {
+  margin: 0.45rem 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #a9b1d6;
+}
+/* The warning the model led with. A filled box in the signal colour, the
+   language of the source chip: this is the one thing on the page that is
+   about the command rather than about its parts. */
+.tldr-danger {
+  display: inline-block;
+  margin: 0.7rem 0 0;
+  padding: 0.18rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(247, 118, 142, 0.16);
+  color: #f7768e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.4;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+/* While the model writes, the panel shows a line of shimmer rather than an
+   empty box, so the reader can see it is working. */
+.tldr.is-pending /* The suggestion panel is the slab's material and the slab's edge: the neon
+   hairline and its halo, the sheen, and no drop shadow — the slab floats, this
+   sits in the flow. */
+#suggestion {
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.06), 0 0 16px -8px rgba(56, 189, 248, 0.45), inset 0 1px 0 rgba(238, 240, 246, 0.1);
+}
+
+/* The panel folds to its command: the reasoning is the part the reader can
+   do without. Folded, it is one line — the label, the command, what it rests
+   on, the buttons. A note the reader has finished with should not take three
+   rows of the page. */
+#suggestion.is-collapsed #suggestion-rationale,
+#suggestion.is-collapsed #suggestion-assumed { display: none; }
+#suggestion.is-collapsed {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  padding: 0.5rem 0.75rem;
+}
+#suggestion.is-collapsed > div,
+#suggestion.is-collapsed #suggestion-meta { display: contents; }
+#suggestion.is-collapsed #suggestion-label { order: 1; }
+#suggestion.is-collapsed #suggestion-command { order: 2; }
+#suggestion.is-collapsed #suggestion-ground { order: 3; margin-top: 0; }
+/* The basis ("new command") is about how the suggestion was made; folded,
+   the reader wants the command and what it rests on. */
+#suggestion.is-collapsed #suggestion-basis { display: none; }
+#suggestion.is-collapsed #suggestion-buttons { order: 5; }
+#suggestion.is-collapsed #suggestion-toggle { order: 6; margin-left: auto; }
+#suggestion.is-collapsed #suggestion-dismiss { order: 7; }
+.suggestion-chevron {
+  width: 11px;
+  height: 11px;
+  transition: transform 0.18s ease;
+}
+#suggestion.is-collapsed .suggestion-chevron { transform: rotate(180deg); }
+.tldr-text { color: #7f88ad; }
+/* The bar that stands for the words the model is still writing. It is the
+   slab's own frame, lit: a rail of neon with the light travelling along it,
+   so the reader sees the model work rather than a dead panel. */
+.tldr.is-pending .tldr-text::before,
+#suggestion.is-pending #suggestion-rationale::before {
+  content: "";
+  display: block;
+  width: 58%;
+  height: 0.9em;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.1), rgba(56, 189, 248, 0.42), rgba(56, 189, 248, 0.1));
+  background-size: 200% 100%;
+  box-shadow: 0 0 14px -3px rgba(56, 189, 248, 0.7);
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ── examples: category tabs over one command panel ──────────── */
+.cat-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  /* The row runs past the column, so it says so: a thin cyan scrollbar under
+     the tabs, and a fade at whichever edge has more behind it. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.38) transparent;
+  padding-bottom: 9px;
+  --fade-left: 0px;
+  --fade-right: 30px;
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), transparent 100%);
+  /* The row overflows by about one tab, so it has only two places it can
+     come to rest: the first tab or the last. Snapping to the ends means a
+     cut tab is never stranded halfway along the row. */
+  scroll-snap-type: x mandatory;
+}
+.cat-tab:first-child { scroll-snap-align: start; }
+.cat-tab:last-child { scroll-snap-align: end; }
+.cat-tabs::-webkit-scrollbar { height: 5px; }
+.cat-tabs::-webkit-scrollbar-track { background: transparent; }
+.cat-tabs::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.38);
+  border-radius: 999px;
+}
+.cat-tabs::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.65); }
+.cat-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid rgba(238, 240, 246, 0.14);
+  border-radius: 6px;
+  background: transparent;
+  color: #a9b1d6;
+  font-family: Ubuntu Sans, Ubuntu, ui-sans-serif, sans-serif;
+  font-size: 13.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
+}
+.cat-tab:hover { border-color: rgba(238, 240, 246, 0.3); color: #eef0f6; }
+.cat-tab[aria-selected="true"] {
+  border-color: rgba(56, 189, 248, 0.55);
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+}
+/* Blue is focus everywhere on the site; cyan is the selected tab. */
+.cat-tab:focus-visible {
+  outline: 2px solid #7aa2f7;
+  outline-offset: 2px;
+}
+
+.cat-panel {
+  border: 1px solid rgba(238, 240, 246, 0.12);
+  border-radius: 10px;
+  background: rgba(26, 27, 38, 0.5);
+  padding: 1.25rem 1.25rem 0.5rem;
+}
+.cat-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.cat-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #eef0f6;
+}
+.cat-desc {
+  margin: 0.35rem 0 0;
+  font-size: 13px;
+  color: #7f88ad;
+}
+.cat-count {
+  flex-shrink: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  color: #7f88ad;
+}
+.cat-list { margin: 1rem 0 0; padding: 0; list-style: none; }
+.ex-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+}
+.ex-row-label {
+  display: block;
+  font-size: 13px;
+  color: #7f88ad;
+}
+.ex-row-cmd {
+  display: block;
+  margin-top: 0.3rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #eef0f6;
+  overflow-wrap: anywhere;
+  transition: color 0.18s ease;
+}
+.ex-row-cmd:hover { color: #38bdf8; }
+.ex-go {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(238, 240, 246, 0.16);
+  border-radius: 6px;
+  background: transparent;
+  color: #a9b1d6;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+.ex-go svg { width: 1rem; height: 1rem; }
+.ex-row:hover .ex-go,
+.ex-go:hover {
+  border-color: transparent;
+  background: #38bdf8;
+  color: #16171f;
+}
+.ex-go:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+/* ── the wordmark's seal ──────────────────────────────────────
+   Rungkai unseals a command: the shield starts shut, parts slowly, and
+   the >_< face fades into the gap it opens. One load animation, no loop. */
+/* Neon frame from the blog's stash page: thin cyan hairline, soft halo, and a
+   focused ring that lights the whole box. */
+.neon-frame {
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.06), 0 0 16px -8px rgba(56, 189, 248, 0.45);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+/* The neon ring is the focus indicator; the default outline would double it. */
+.neon-frame input:focus-visible,
+input.neon-frame:focus-visible {
+  outline: none;
+}
+.neon-frame:focus-within {
+  border-color: rgba(56, 189, 248, 0.75);
+  box-shadow:
+    0 0 0 3px rgba(56, 189, 248, 0.16),
+    0 0 22px -2px rgba(56, 189, 248, 0.5),
+    inset 0 0 16px rgba(56, 189, 248, 0.1);
+}
+
+/* Mode picker above the one-line box: explain a command, or ask for one. */
+.mode-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 6px;
+  background: rgba(41, 46, 66, 0.55);
+  color: #eef0f6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.mode-trigger:hover,
+.mode-trigger[aria-expanded="true"] {
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 0 14px -4px rgba(56, 189, 248, 0.6);
+}
+.mode-trigger-icon {
+  width: 14px;
+  height: 14px;
+  color: #38bdf8;
+}
+.mode-trigger[data-mode="explain"] .icon-suggest,
+.mode-trigger[data-mode="suggest"] .icon-explain {
+  display: none;
+}
+.mode-trigger-chevron {
+  width: 10px;
+  height: 10px;
+  color: #7f88ad;
+}
+.mode-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 30;
+  width: min(360px, calc(100vw - 3rem));
+  padding: 0.95rem 0.95rem 0.6rem;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 0.7rem;
+  box-shadow: 0 30px 60px -25px rgba(0, 0, 0, 0.9);
+}
+.mode-menu-title {
+  font-family: Orbitron, Ubuntu Sans, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #eef0f6;
+}
+.mode-menu-hint {
+  margin-top: 0.2rem;
+  padding-bottom: 0.7rem;
+  font-size: 12.5px;
+  color: #8b93b8;
+}
+.mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.5rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: #eef0f6;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.mode-option:hover {
+  background: rgba(238, 240, 246, 0.06);
+}
+.mode-option:focus-visible {
+  outline: none;
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.75);
+}
+#env-menu [role="option"]:focus-visible {
+  outline: none;
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: inset 0 0 0 2px rgba(56, 189, 248, 0.75);
+}
+.mode-dot {
+  flex-shrink: 0;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-top: 0.5rem;
+  border: 1px solid #7f88ad;
+  border-radius: 999px;
+}
+.mode-option[aria-selected="true"] .mode-dot {
+  border-color: #38bdf8;
+  background: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
+}
+.mode-option-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 0.1rem;
+  color: #7f88ad;
+}
+.mode-option[aria-selected="true"] .mode-option-icon {
+  color: #38bdf8;
+}
+.mode-option-title {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.mode-option-desc {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #8b93b8;
+}
+/* The AI mark: the same four-pointed star the suggest mode wears, drawn in
+   the family's stroke. One mark, wherever the model is involved. */
+.ai-mark-wrap {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.3rem;
+  color: #8b93b8;
+  vertical-align: -0.1em;
+}
+.ai-mark { width: 13px; height: 13px; }
+/* While the answer is open, the panel carries the mark: one at a time. */
+.tldr-button[aria-expanded="true"] .ai-mark-wrap { display: none; }
+
+/* The line seal: two shield halves that part to reveal the prompt. Pure SVG,
+   so it paints with the page and costs nothing after load. */
+.seal {
+  display: block;
+  width: 50px;
+  height: 50px;
+  flex: none;
+  overflow: visible;
+}
+.seal path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.seal-face path {
+  stroke-width: 3.6;
+}
+.seal-half path {
+  /* Move the vector coordinates rather than a transformed stroke, so the
+     outline uses the same rendering all the way through to its resting pose.
+     A sampled smootherstep curve softens the speed and acceleration as the
+     halves come to rest. */
+  animation-duration: 1.2s;
+  animation-timing-function: linear(
+    0, 0.00116, 0.00856, 0.02661, 0.05792, 0.10352, 0.16308,
+    0.23517, 0.31744, 0.40687, 0.5, 0.59313, 0.68256,
+    0.76483, 0.83692, 0.89648, 0.94208, 0.97339, 0.99144,
+    0.99884, 1
+  );
+  animation-fill-mode: both;
+}
+/* Closed, both inner edges meet on the centre line at x=64; the halves then
+   slide apart by the same 25-unit offset, so the mark never drifts sideways
+   while it opens. */
+.seal-half-left path {
+  animation-name: seal-unseal-left;
+}
+.seal-half-right path {
+  animation-name: seal-unseal-right;
+}
+/* The face waits for the gap to be wider than it: it fades in at 0.8s, once
+   the halves have opened far enough to hold it, and is whole before the
+   slide stops, so nothing is still changing when the mark comes to rest. */
+.seal-face {
+  animation: seal-unseal 0.25s ease-out 0.8s both;
+}
+@keyframes seal-unseal-left {
+  from {
+    d: path("M64 18 36 38v47l28 23V18Z");
+  }
+  to {
+    d: path("M39 18 11 38v47l28 23V18Z");
+  }
+}
+@keyframes seal-unseal-right {
+  from {
+    d: path("M64 18l28 20v47l-28 23V18Z");
+  }
+  to {
+    d: path("M89 18l28 20v47l-28 23V18Z");
+  }
+}
+@keyframes seal-unseal {
+  from {
+    opacity: 0;
+  }
+}
+@media (min-width: 640px) {
+  .seal {
+    width: 60px;
+    height: 60px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .seal-half path,
+  .seal-face {
+    animation: none;
+  }
+}

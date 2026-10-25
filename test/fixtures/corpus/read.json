@@ -1,0 +1,1 @@
+{"cmd":"read","section":1,"source":"https://manpages.ubuntu.com/manpages/noble/en/man1/bash.1.html","options":[{"names":["-e"]},{"names":["-r"]},{"names":["-s"]},{"names":["-a"]},{"names":["-d"]},{"names":["-i"]},{"names":["-n"]},{"names":["-N"]},{"names":["-p"]},{"names":["-t"]},{"names":["-u"]}],"values":{},"operands":[],"builtin":true}

@@ -1,0 +1,41 @@
+Rungkai
+Copyright (c) 2026 Fauzuwan Nazri
+
+This product is licensed under the MIT License; see the LICENSE file.
+
+If you fork, deploy or redistribute Rungkai — in your own Cloudflare account
+or anywhere else — please keep this notice and credit Fauzuwan Nazri as the
+author. There is no requirement to contribute changes back, and no CLA: fork
+it, change whatever you like, deploy it for yourself or your team. The only
+ask is that the credit stays.
+
+
+Third-party components
+----------------------
+
+The fonts in public/fonts/ are not covered by the MIT licence and keep their
+own terms. Both licences are shipped next to the fonts they cover, as those
+licences require.
+
+  Orbitron
+    Copyright 2018 The Orbitron Project Authors
+    (https://github.com/theleagueof/orbitron)
+    Licensed under the SIL Open Font License, Version 1.1
+    See public/fonts/Orbitron-OFL.txt
+
+  Ubuntu Sans
+    Copyright 2010 Canonical Ltd.
+    Licensed under the Ubuntu Font Licence 1.0
+    See public/fonts/UbuntuSans-UFL.txt
+
+
+The corpus
+----------
+
+A corpus is built from a distribution's man pages, and those pages carry the
+licence of the software they document — GPL, BSD, or whatever upstream chose.
+That licence travels with the page and is not affected by the MIT licence
+above, which covers this code and not the documentation it reads.
+
+The MIT licence covers the code in this repository. It does not relicense the
+man pages, the fonts, or any other third-party material.

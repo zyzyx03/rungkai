@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.astro/
+
+# Cloudflare: the local R2 store, the cache and the wrangler state
+.wrangler/
+
+# The corpus: man pages rendered to JSON. It is large and it is rebuilt from
+# ingest/ — keep it out of the history.
+.corpus/
+
+# Secrets. DEEPSEEK_API_KEY lives in .env and the Cloudflare secret in
+# .dev.vars; neither may ever be committed. The .example files are the
+# templates and belong in the repository.
+.env
+.dev.vars
+
+# Tool caches and per-developer state
+.impeccable/hook.cache.json
+.impeccable/config.local.json
+.impeccable/review/
+.verify/
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+*.swp
+*~

@@ -1,0 +1,48 @@
+{
+  "cmd": "tar",
+  "env": "ubuntu/24.04",
+  "source": "https://manpages.ubuntu.com/manpages/noble/en/man1/tar.1.html",
+  "licence": "demo fixture \u2014 replace with output of ingest/ingest.mjs",
+  "options": [
+    {
+      "names": [
+        "-z",
+        "--gzip",
+        "--gunzip",
+        "--ungzip"
+      ],
+      "desc": "Filter the archive through gzip(1)."
+    },
+    {
+      "names": [
+        "-c",
+        "--create"
+      ],
+      "desc": "Create a new archive. Arguments supply the names of the files to be archived."
+    },
+    {
+      "names": [
+        "-f",
+        "--file"
+      ],
+      "desc": "Use archive file or device ARCHIVE."
+    },
+    {
+      "names": [
+        "-x",
+        "--extract",
+        "--get"
+      ],
+      "desc": "Extract files from an archive."
+    },
+    {
+      "names": [
+        "-v",
+        "--verbose"
+      ],
+      "desc": "Verbosely list files processed."
+    }
+  ],
+  "chunks": [],
+  "synopsis": "an archiving utility"
+}

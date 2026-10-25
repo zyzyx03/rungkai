@@ -1,0 +1,25 @@
+{
+  "name": "rungkai",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro build && wrangler dev --remote",
+    "dev:local": "astro build && wrangler dev --config wrangler.local.jsonc --port 8787",
+    "build": "astro build",
+    "deploy": "astro build && wrangler deploy",
+    "test": "node --test test/*.test.mjs",
+    "test:browser": "npm run build && node test/browser/motion.mjs",
+    "ingest": "node ingest/ingest.mjs"
+  },
+  "dependencies": {
+    "astro": "^7.4.2",
+    "hono": "^4.13.13",
+    "tree-sitter-bash": "^0.25.1",
+    "web-tree-sitter": "^0.27.1"
+  },
+  "devDependencies": {
+    "@unocss/astro": "^66.11.0",
+    "unocss": "^66.11.0",
+    "wrangler": "^4"
+  }
+}
