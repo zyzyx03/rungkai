@@ -13,7 +13,7 @@ export function flagParagraphOptions(html, known) {
     const text = decode(para[1].replace(/<br\s*\/?>/gi, "\t").replace(/<[^>]+>/g, ""));
     const tab = text.indexOf("\t");
     if (tab < 0) continue;
-    const names = [...text.slice(0, tab).matchAll(/(?:^|,\s*)(-{1,2}[A-Za-z0-9][\w-]*)/g)]
+    const names = [...text.slice(0, tab).matchAll(/(?:^|,\s*)(-{1,2}[A-Za-z0-9][\w.-]*)/g)]
       .map((m) => m[1])
       .filter((n) => !known.has(n));
     if (!names.length) continue;
@@ -83,7 +83,7 @@ export function proseOptions(html, known) {
   for (const para of section.matchAll(/<p class="Pp">([\s\S]*?)<\/p>/g)) {
     const text = decode(para[1].replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
     if (!text) continue;
-    for (const m of text.matchAll(/(?:^|[.;]?\s)(?:If\s+the\s+|The\s+|Using\s+)?(-{1,2}[A-Za-z0-9][\w-]*)\s+(?:option|flag)\b/g)) {
+    for (const m of text.matchAll(/(?:^|[.;]?\s)(?:If\s+the\s+|The\s+|Using\s+)?(-{1,2}[A-Za-z0-9][\w.-]*)\s+(?:option|flag)\b/g)) {
       const name = m[1];
       if (known.has(name)) continue;
       const sentence = text;
@@ -101,7 +101,7 @@ export function parseOptions(html) {
   // A page may name an option with a placeholder: git's "-<number>". The
   // placeholder is part of the name, and what it stands for is what the
   // page says it stands for.
-  const OPTION_NAME = /(?:^|[\s,])(--?(?:[A-Za-z0-9][\w-]*|<[A-Za-z][A-Za-z0-9_-]*>)|\+[A-Za-z0-9])/g;
+  const OPTION_NAME = /(?:^|[\s,])(--?(?:[A-Za-z0-9][\w.-]*|<[A-Za-z][A-Za-z0-9_-]*>)|\+[A-Za-z0-9])/g;
   const options = [];
   const push = (nameHtml, descHtml) => {
     const label = text(nameHtml).replace(/\s+/g, " ").trim();

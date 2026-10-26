@@ -199,6 +199,64 @@ cp .corpus/docker/pages/*.json .corpus/noble/pages/
 cp .corpus/docker/pages/*.json .corpus/el9/pages/
 ```
 
+**Percona Toolkit** is not part of a base system. Percona's own repository
+carries the current package (3.7.2) with its man pages in section 1p; Ubuntu's
+universe package is older (3.2.1). Extract the man tree, ingest it as its own
+corpus, then copy the pages into each target:
+
+```sh
+curl -sSLO https://repo.percona.com/pt/apt/pool/main/p/percona-toolkit/percona-toolkit_3.7.2-1.noble_amd64.deb
+dpkg-deb -x percona-toolkit_3.7.2-1.noble_amd64.deb /tmp/percona-toolkit
+
+# Eight tools ship without a man page; build one from the tool's own help.
+BIN=/tmp/percona-toolkit/usr/bin
+MAN=/tmp/percona-toolkit/usr/share/man/man1
+"$BIN/pt-pg-summary" --help-man |
+  node ingest/help-man.mjs --man --name pt-pg-summary \
+    --desc "Collects information about a PostgreSQL cluster." > "$MAN/pt-pg-summary.1"
+"$BIN/pt-secure-collect" --help-man |
+  node ingest/help-man.mjs --man --name pt-secure-collect \
+    --desc "Collects, sanitizes, packs and encrypts data." > "$MAN/pt-secure-collect.1"
+pod2man "$BIN/pt-upgrade" > "$MAN/pt-upgrade.1"
+while IFS='|' read -r tool description; do
+  "$BIN/$tool" --help |
+    node ingest/help-man.mjs --name "$tool" --desc "$description" > "$MAN/$tool.1"
+done <<'LIST'
+pt-mongodb-index-check|Performs checks on MongoDB indexes.
+pt-mongodb-query-digest|Reports query usage statistics from the MongoDB query profiler.
+pt-mongodb-summary|Collects information about a MongoDB cluster.
+pt-galera-log-explainer|Merges and helps analyze Galera logs.
+pt-k8s-debug-collector|Collects debug data from a Kubernetes or OpenShift cluster.
+LIST
+gzip "$MAN"/*.1
+
+node ingest/ingest.mjs --env percona --from-dir /tmp/percona-toolkit/usr/share/man \
+  --source-base "https://docs.percona.com/percona-toolkit/{name}.html"
+cp .corpus/percona/pages/*.json .corpus/noble/pages/
+cp .corpus/percona/pages/*.json .corpus/el9/pages/
+cp .corpus/percona/pages/*.json .corpus/alpine/3.22/pages/
+```
+
+Like Docker, copy the pages in **after** an ingest: ingestion clears the
+directory it writes to. The tool set changes between releases, so after a
+refresh remove the pages of tools the release dropped from both the corpora
+and the bucket.
+
+**PostgreSQL clients** need the versioned package, not the wrapper.
+`postgresql-client-common` ships `psql(1)` and friends as wrapper pages that
+document only `--cluster`; the real pages live under
+`/usr/share/postgresql/16/man` in `postgresql-client-16`. Ingest those into
+the Ubuntu corpus after the main build:
+
+```sh
+apt-get download postgresql-client-16
+dpkg-deb -x postgresql-client-16_*.deb /tmp/pg-client
+node ingest/ingest.mjs --env postgresql \
+  --from-dir /tmp/pg-client/usr/share/postgresql/16/man \
+  --source-base "https://manpages.ubuntu.com/manpages/noble/en"
+cp .corpus/postgresql/pages/*.json .corpus/noble/pages/
+```
+
 ### Embeddings: giving chat and the recommender their excerpts
 
 `retrieve()` scores the `chunks[]` a page carries. Ingesting writes the text;
@@ -213,6 +271,20 @@ The token needs **Workers AI: Read**. Pages that already carry chunks are
 skipped; `--force` re-embeds them. Without this pass, chat and the recommender
 still answer — the prompt says no excerpts were retrieved — but nothing is
 grounded in the corpus.
+
+### The suggestion index
+
+A suggestion starts with no command, so retrieval has no tools to restrict
+itself to. `ingest/index.mjs` writes one synopsis per page (`_index.json`,
+uploaded with the corpus); the worker scores it against the request and reads
+the best pages before calling the model. Run it after the shared pages are
+copied and before the upload:
+
+```sh
+node ingest/index.mjs .corpus/noble/pages
+```
+
+Without the index a fresh suggestion still answers, but with no excerpts.
 
 ### Export: moving a corpus in and out of R2
 

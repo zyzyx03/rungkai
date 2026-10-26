@@ -47,7 +47,7 @@ export function flagsOf(entry) {
 // The flags in a line of text, and where each one sits.
 function flagSpans(flat) {
   const spans = [];
-  for (const m of flat.matchAll(/--?[A-Za-z0-9][\w-]*|\+[A-Za-z0-9]/g)) {
+  for (const m of flat.matchAll(/--?[A-Za-z0-9][\w.-]*|\+[A-Za-z0-9]/g)) {
     const before = flat[m.index - 1] ?? " ";
     if (!/[\s,]/.test(before)) continue;
     if (spans.some((s) => s.name === m[0])) continue;
@@ -77,7 +77,7 @@ export function optionValues(html, known = new Set()) {
     if (flags.length) {
       // An entry names its option first; prose that mentions a flag in passing
       // does not, and its italics are not the flag's value.
-      if (!/^(--?[A-Za-z0-9][\w-]*|\+[A-Za-z0-9])/.test(flat)) continue;
+      if (!/^(--?[A-Za-z0-9][\w.-]*|\+[A-Za-z0-9])/.test(flat)) continue;
     } else {
       // Some pages write the option without its dash: "name pattern".
       const dashed = `-${flat.split(/\s+/)[0] ?? ""}`;

@@ -48,7 +48,7 @@ function commandsFor(page) {
 export function loadPages(dir) {
   const pages = new Map();
   for (const file of readdirSync(dir)) {
-    if (file.endsWith(".json")) pages.set(file.replace(/\.json$/, ""), JSON.parse(readFileSync(join(dir, file), "utf8")));
+    if (file.endsWith(".json") && !file.startsWith("_")) pages.set(file.replace(/\.json$/, ""), JSON.parse(readFileSync(join(dir, file), "utf8")));
   }
   return pages;
 }

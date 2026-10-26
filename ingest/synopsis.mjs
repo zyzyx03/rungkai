@@ -15,7 +15,7 @@ export function synopsisOptions(html, known) {
     if (!text) continue;
     for (const b of para[1].matchAll(/<b>([^<]*)<\/b>/g)) {
       const parts = b[1].split(/[|,]/).map((s) => s.trim()).filter(Boolean);
-      if (!parts.length || !parts.every((n) => /^(?:-{1,2}|\+)[\w-]+$/.test(n))) continue;
+      if (!parts.length || !parts.every((n) => /^(?:-{1,2}|\+)[\w.-]+$/.test(n))) continue;
       // Keep the whole {-i|--install} group, not just the unknown long name:
       // the short name is what the user types, and the mode decides its meaning.
       const names = parts.map((n) => n.split("=")[0]);

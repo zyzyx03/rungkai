@@ -64,3 +64,17 @@ test("consecutive empty definitions share the following source description", asy
   assert.equal(got[1].desc, got[0].desc);
   assert.equal(got[2].desc, "");
 });
+
+test("a long option may carry a dot", async () => {
+  const { parseOptions } = await import("../ingest/flags.mjs");
+  const html = `
+<section class="Sh">
+<h1 class="Sh" id="OPTIONS">OPTIONS</h1>
+<dl class="Bl-tag Bl-compact">
+<dt><b>--mongodb.uri</b>=<i>URI</i></dt>
+<dd><p class="Pp">Connection URI.</p></dd>
+</dl>
+</section>`;
+  const got = parseOptions(html);
+  assert.deepEqual(got[0].names, ["--mongodb.uri"]);
+});
