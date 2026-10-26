@@ -25,6 +25,6 @@
   "vars": {
     "DEEPSEEK_MODEL": "deepseek-flash",
     "DAILY_BUDGET_MICRO": "1000000",
-    "CORPUS_VERSION": "28"
+    "CORPUS_VERSION": "29"
   }
 }

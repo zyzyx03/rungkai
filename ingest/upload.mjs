@@ -39,6 +39,38 @@ if (local && !useDevApi) {
   console.log(`no dev server on ${DEV_API}, falling back to the wrangler CLI (slow)`);
 }
 
+// R2s S3 API moves the directory from one process. The wrangler CLI starts a
+// Node process per object and takes seconds a file, so a full corpus is a
+// minute here rather than an hour.
+const s3Env = {
+  ...process.env,
+  AWS_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+  AWS_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+  AWS_DEFAULT_REGION: "auto",
+  AWS_REQUEST_CHECKSUM_CALCULATION: "when_required",
+  AWS_RESPONSE_CHECKSUM_VALIDATION: "when_required",
+};
+const useS3 =
+  !local && s3Env.AWS_ACCESS_KEY_ID && s3Env.AWS_SECRET_ACCESS_KEY && process.env.CLOUDFLARE_ACCOUNT_ID;
+if (useS3) {
+  execFileSync(
+    "aws",
+    [
+      "s3",
+      "sync",
+      `${dir}/`,
+      `s3://${BUCKET}/${envId}/`,
+      "--only-show-errors",
+      "--endpoint-url",
+      `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    ],
+    { stdio: "inherit", env: s3Env },
+  );
+  console.log(`synced ${files.length} files to ${BUCKET}/${envId} over the S3 API`);
+  console.log("bump CORPUS_VERSION in wrangler.jsonc so the explainer cache turns over");
+  process.exit(0);
+}
+
 // The corpus is a few thousand files and each wrangler call takes a moment,
 // so they go in parallel. The local R2 store is one sqlite file: keep the
 // pool small enough that two writers do not collide.
@@ -51,7 +83,7 @@ async function worker() {
   while (next < files.length) {
     const file = files[next++];
     const key = `${envId}/${file}`;
-    const args = ["r2", "object", "put", `${BUCKET}/${key}`, "--file", join(dir, file), ...(local ? ["--local"] : [])];
+    const args = ["r2", "object", "put", `${BUCKET}/${key}`, "--file", join(dir, file), ...(local ? ["--local"] : ["--remote"])];
     // The local store is one sqlite file: two writers can collide, so a
     // failure is tried once more on its own.
     for (let attempt = 0; attempt < 2; attempt++) {
