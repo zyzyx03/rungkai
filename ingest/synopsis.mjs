@@ -1,3 +1,5 @@
+import { definitionEntries } from "./operands.mjs";
+
 // Options a page defines in its SYNOPSIS or symbolic mode, not in the option list.
 // rpm(8) documents {-q|--query} and friends that way; without this, `rpm -qa`
 // anchors -a and leaves -q unexplained. The synopsis line is the description:
@@ -19,7 +21,7 @@ export function synopsisOptions(html, known) {
       const names = parts.map((n) => n.split("=")[0]);
       if (names.every((n) => known.has(n) || seen.has(n))) continue;
       for (const n of names) seen.add(n);
-      out.push({ names, desc: `In the SYNOPSIS: ${text.slice(0, 300)}`, synopsis: true });
+      out.push({ names, desc: "", usage: text, gap: true, synopsis: true });
     }
   }
   // A mode such as +-=[letters] supplies the signs; each letter's definition
@@ -27,14 +29,15 @@ export function synopsisOptions(html, known) {
   const mode = /(\+-)=?\s*\[([A-Za-z]+)\]/.exec(plain(html));
   if (mode) {
     const operator = plain(/<p class="Pp">The operator\b[\s\S]*?<\/p>/.exec(html)?.[0] ?? "");
-    for (const pair of html.matchAll(/<dt[^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/g)) {
-      const letter = plain(pair[1]).trim();
+    for (const [head, body] of definitionEntries(html)) {
+      const letter = plain(head).trim();
       if (letter.length !== 1 || !mode[2].includes(letter)) continue;
+      const label = new RegExp(`(?:^|[:,])\\s*([^,():]+)\\s*\\(${letter}\\)`).exec(plain(html))?.[1]?.trim();
       for (const sign of mode[1]) {
         const name = sign + letter;
         if (known.has(name) || seen.has(name)) continue;
         seen.add(name);
-        out.push({ names: [name], desc: `${operator} ${plain(pair[2])}`.replace(/\s+/g, " ").trim() });
+        out.push({ names: [name], desc: `${label ? `${label}. ` : ""}${operator} ${plain(body)}`.replace(/\s+/g, " ").trim() });
       }
     }
   }

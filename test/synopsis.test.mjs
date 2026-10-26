@@ -21,7 +21,9 @@ const rpm = `
 test("synopsis-only options are extracted with their line", () => {
   const got = synopsisOptions(rpm, new Set(["-a", "--all"]));
   assert.deepEqual(got.map((o) => o.names), [["-q", "--query"], ["--querytags"]]);
-  assert.match(got[0].desc, /^In the SYNOPSIS: rpm \{-q\|--query\}/);
+  assert.equal(got[0].desc, "");
+  assert.equal(got[0].gap, true);
+  assert.match(got[0].usage, /^rpm \{-q\|--query\}/);
   const signed = synopsisOptions(rpm.replace("-q|--query", "+i|-i"), new Set());
   assert.deepEqual(signed[0].names, ["+i", "-i"]);
 });
@@ -32,6 +34,7 @@ test("symbolic modes expand only writable attributes using their definitions", (
   assert.deepEqual(got.map((o) => o.names), [["+i"], ["-i"]]);
   assert.match(got[0].desc, /operator '\+' causes.*added/);
   assert.match(got[0].desc, /'i' attribute cannot be modified/);
+  assert.match(got[0].desc, /^immutable\./);
   assert.deepEqual(synopsisOptions(html, new Set(["-RVf", "+i", "-i"])), []);
 });
 

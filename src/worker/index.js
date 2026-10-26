@@ -1,10 +1,12 @@
 import { Hono } from "hono";
 import { parseOneLiner } from "../lib/parse.js";
 import { explain } from "../lib/explain.js";
-import { matchArg, matchValue } from "../lib/pages.js";
+import { matchArg, matchValue, pagePath } from "../lib/pages.js";
 import { resolveCommands } from "../lib/wrap.js";
 import { retrieve } from "../lib/retrieve.js";
 import { resolveEnv } from "../lib/envs.js";
+import { checkText, readBody, MAX_CMD, MAX_MESSAGES, MAX_MESSAGE } from "../lib/input.js";
+import { commandHash } from "../lib/cache.js";
 import { Budget } from "./budget.js";
 
 const app = new Hono();
@@ -12,7 +14,6 @@ const app = new Hono();
 // deepseek-flash, off-peak, micro-USD per token.
 const IN_RATE = 0.15;
 const OUT_RATE = 0.6;
-const MAX_CMD = 2000;
 
 export { Budget };
 
@@ -34,11 +35,7 @@ const PAGE_CACHE = new Map();
 const PAGE_CACHE_SIZE = 32;
 
 async function loadPage(env, envId, tool, args = []) {
-  const path = [tool];
-  for (const arg of args) {
-    if (arg.text.startsWith("-") || path.length >= 3) break;
-    path.push(arg.text);
-  }
+  const path = pagePath(tool, args);
   const envIds = resolveEnv(envId);
   for (let n = path.length; n >= 1; n--) {
     for (const id of envIds) {
@@ -50,9 +47,8 @@ async function loadPage(env, envId, tool, args = []) {
         PAGE_CACHE.set(key, cached);
         return { ...cached, env: id, subArgs: n - 1 };
       }
-      const obj = await env.CORPUS.get(`${key}.json`);
-      if (!obj) continue;
-      const page = await obj.json();
+      const page = await readPage(env, key);
+      if (!page) continue;
       PAGE_CACHE.set(key, page);
       if (PAGE_CACHE.size > PAGE_CACHE_SIZE) PAGE_CACHE.delete(PAGE_CACHE.keys().next().value);
       return { ...page, env: id, subArgs: n - 1 };
@@ -61,13 +57,28 @@ async function loadPage(env, envId, tool, args = []) {
   return null;
 }
 
+// A page that cannot be read is a page that is not there. The corpus is asked
+// by key, and a key the store refuses must not take the whole answer down:
+// the loop then tries the shorter path, and the command is still explained.
+async function readPage(env, key) {
+  try {
+    const obj = await env.CORPUS.get(`${key}.json`);
+    return obj ? await obj.json() : null;
+  } catch {
+    return null;
+  }
+}
+
 app.post("/api/explain", async (c) => {
-  const { cmd, env: envId = "all" } = await c.req.json();
-  if (typeof cmd !== "string" || cmd.length > MAX_CMD) return c.json({ error: "bad command" }, 400);
+  const { body, env: envId, error } = await readBody(c.req.raw);
+  if (error) return c.json({ error }, 400);
+  const { cmd } = body;
+  const problem = checkText(cmd);
+  if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
 
   // Bump CORPUS_VERSION after re-ingesting, or a stale answer survives for a day.
   const version = c.env.CORPUS_VERSION ?? "1";
-  const key = new Request(new URL(`/__cache/explain?v=${version}&env=${encodeURIComponent(envId)}&cmd=${encodeURIComponent(cmd)}`, c.req.url));
+  const key = new Request(new URL(`/__cache/explain?v=${version}&env=${encodeURIComponent(envId)}&cmd=${await commandHash(cmd)}`, c.req.url));
   const cache = caches.default;
   const hit = await cache.match(key);
   if (hit) return hit;
@@ -91,8 +102,19 @@ app.post("/api/chat", async (c) => {
   if (!(await c.env.CHAT_LIMIT.limit({ key: ip })).success) return c.json({ error: "slow down" }, 429);
   if (!c.env.DEEPSEEK_API_KEY) return c.json({ error: "chat is not configured" }, 503);
 
-  const { cmd, env: envId = "all", messages = [] } = await c.req.json();
-  if (typeof cmd !== "string" || !Array.isArray(messages)) return c.json({ error: "bad request" }, 400);
+  const { body, env: envId, error } = await readBody(c.req.raw);
+  if (error) return c.json({ error }, 400);
+  const { cmd, messages = [] } = body;
+  if (!Array.isArray(messages)) return c.json({ error: "bad request: messages must be a list" }, 400);
+  if (messages.length > MAX_MESSAGES) {
+    return c.json({ error: `bad request: at most ${MAX_MESSAGES} messages` }, 400);
+  }
+  const problem = checkText(cmd);
+  if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
+  for (const message of messages) {
+    const bad = checkText(message?.content, MAX_MESSAGE);
+    if (bad) return c.json({ error: `bad message: ${bad}` }, 400);
+  }
 
   const parsed = await parseOneLiner(cmd);
   const question = messages.at(-1)?.content ?? "";
@@ -134,7 +156,7 @@ app.post("/api/chat", async (c) => {
 
   const [toClient, forUsage] = upstream.body.tee();
   c.executionCtx.waitUntil(
-    readUsage(forUsage).then((usage) => {
+    readStream(forUsage).then(({ usage }) => {
       if (!usage) return;
       const actual = usage.prompt_tokens * IN_RATE + usage.completion_tokens * OUT_RATE;
       return charge(c.env, "adjust", est - actual);
@@ -149,15 +171,18 @@ app.post("/api/chat", async (c) => {
 // One sentence on what the whole command does. Grounded in the same corpus
 // pages the breakdown uses, and always labelled as the model's words.
 app.post("/api/tldr", async (c) => {
-  const { cmd, env: envId = "all" } = await c.req.json();
-  if (typeof cmd !== "string" || !cmd) return c.json({ error: "bad command" }, 400);
+  const { body, env: envId, error } = await readBody(c.req.raw);
+  if (error) return c.json({ error }, 400);
+  const { cmd } = body;
+  const problem = checkText(cmd);
+  if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
   if (!c.env.DEEPSEEK_API_KEY) return c.json({ error: "not configured" }, 503);
 
   // The same command always wants the same sentence, so pay for it once. The
   // cache comes before the rate limit: a free answer costs nothing, and
   // should not spend the reader's chat budget.
   const version = c.env.CORPUS_VERSION ?? "1";
-  const key = new Request(new URL(`/__cache/tldr?v=${version}&env=${encodeURIComponent(envId)}&cmd=${encodeURIComponent(cmd)}`, c.req.url));
+  const key = new Request(new URL(`/__cache/tldr?v=${version}&env=${encodeURIComponent(envId)}&cmd=${await commandHash(cmd)}`, c.req.url));
   const hit = await caches.default.match(key);
   if (hit) {
     const { summary } = await hit.json();
@@ -289,15 +314,17 @@ async function readStream(stream) {
   return { text: out, usage };
 }
 
-app.post("/api/change", async (c) => {
-  const { cmd, env: envId = "all", request } = await c.req.json();
-  if (typeof cmd !== "string" || typeof request !== "string") return c.json({ error: "bad request" }, 400);
-  return recommend(c, { cmd, request, envId });
-});
-
-app.post("/api/suggest", async (c) => {
-  const { cmd = "", env: envId = "all", request } = await c.req.json();
-  if (typeof request !== "string") return c.json({ error: "bad request" }, 400);
+// /api/change remains an alias whose callers must supply the current command.
+app.on("POST", ["/api/suggest", "/api/change"], async (c) => {
+  const { body, env: envId, error } = await readBody(c.req.raw);
+  if (error) return c.json({ error }, 400);
+  const { cmd = c.req.path === "/api/suggest" ? "" : undefined, request } = body;
+  if (c.req.path === "/api/change" && typeof cmd !== "string") return c.json({ error: "bad request" }, 400);
+  const problem = checkText(request);
+  if (problem) return c.json({ error: `bad request: ${problem}` }, 400);
+  // A new command has no command to check; a changed one does.
+  const bad = cmd ? checkText(cmd) : null;
+  if (bad) return c.json({ error: `bad command: ${bad}` }, 400);
   return recommend(c, { cmd, request, envId });
 });
 
@@ -408,19 +435,4 @@ export default app;
 
 function chars(text) {
   return text.length;
-}
-
-async function readUsage(stream) {
-  const text = await new Response(stream).text();
-  let usage = null;
-  for (const line of text.split("\n")) {
-    if (!line.startsWith("data: ")) continue;
-    const payload = line.slice(6).trim();
-    if (payload === "[DONE]") continue;
-    try {
-      const json = JSON.parse(payload);
-      if (json.usage) usage = json.usage;
-    } catch {}
-  }
-  return usage;
 }

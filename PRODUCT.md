@@ -25,7 +25,7 @@ A browser, often during an incident or while reading a runbook. Commands are pas
 - Per-environment corpora; v1 ships Ubuntu 24.04 only. `all` answers from the best matching corpus and labels the source.
 - Shell syntax anchors to `bash(1)`.
 - The deterministic explainer is cached and works with zero model budget.
-- A plain-language recommender (`/api/suggest`) returns one command, fresh or adapted from the current one, with a rationale and its assumptions. It is a single suggestion, not a conversation. `/api/change` and `/api/chat` remain available.
+- A plain-language recommender (`/api/suggest`) returns one command, fresh or adapted from the current one, with a rationale and its assumptions. It is a single suggestion, not a conversation. `/api/change` remains a compatibility alias requiring a string `cmd`; `/api/chat` remains available.
 - Operator-funded DeepSeek key behind a $1/day budget in a Durable Object; 5 recommender or chat requests/minute per IP.
 - No accounts, no server-side history, no stored commands. Permalinks carry command and environment in the URL.
 - Tools without a page are shown as gaps, never filled with model prose.

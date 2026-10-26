@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { optionValues, synopsisFacts, operandDocs } from "../ingest/operands.mjs";
+import { optionArg, optionValues, synopsisFacts, operandDocs } from "../ingest/operands.mjs";
 
 // mdoc: the value is an argument element.
 const mdoc = `
@@ -35,6 +35,29 @@ test("a value written after an equals sign is read", () => {
   assert.equal(optionValues(macros)["--bytes"], "LIST");
 });
 
+test("angle-bracket values are read for short flags and long aliases, keeping the first value", () => {
+  const html = `<h1 id="OPTIONS">OPTIONS</h1>
+    <p class="Pp">-m &lt;msg&gt;, --message=&lt;msg&gt;</p>
+    <p class="Pp">-o &lt;file&gt;</p>
+    <p class="Pp">--cleanup=&lt;mode&gt;</p>
+    <p class="Pp">-o &lt;other&gt;</p>`;
+  assert.deepEqual(optionValues(html), { "-m": "<msg>", "--message": "<msg>", "-o": "<file>", "--cleanup": "<mode>" });
+  assert.equal(optionArg("-L &lt;start&gt;"), "<start>");
+  assert.equal(optionArg("-S &lt;revs-file&gt;"), "<revs-file>");
+  assert.equal(optionArg("-m <i>&lt;msg&gt;</i>"), "<msg>");
+});
+
+test("generic option placeholders are not values, including angle brackets", () => {
+  for (const generic of ["OPTION", "OPTIONS", "ARG", "ARGS", "ARGUMENT", "ARGUMENTS"]) {
+    for (const word of [generic, generic.toLowerCase()]) {
+      for (const value of [word, `&lt;${word}&gt;`, `<i>${word}</i>`, `<i>&lt;${word}&gt;</i>`, `<var class="Ar">${word}</var>`, `<var class="Ar">&lt;${word}&gt;</var>`]) {
+        assert.equal(optionArg(`-x ${value}`), null, value);
+        assert.equal(optionArg(`--example=${value}`), null, value);
+      }
+    }
+  }
+});
+
 test("the synopsis names the positional operands in order", () => {
   const { operands } = synopsisFacts(mdoc, "ssh");
   assert.deepEqual(operands, ["destination", "command"]);
@@ -58,4 +81,32 @@ test("a flag the synopsis shows without a value takes none", () => {
 test("the description of an operand is the page's own words for it", () => {
   const docs = operandDocs(mdoc, ["destination"]);
   assert.match(docs.destination, /logs into the specified destination/);
+});
+
+test("operand prose excludes introductory boilerplate and has no length cap", () => {
+  const html = `<h1 id="DESCRIPTION">DESCRIPTION</h1>
+    <p class="Pp">This manual page documents the GNU version of rm.
+    rm removes each specified file. By default, it does not remove directories.</p>
+    <p class="Pp">The TARGET operand identifies the destination. ${"Further source detail. ".repeat(50)}</p>`;
+  const docs = operandDocs(html, ["FILE", "TARGET", "absent"]);
+  assert.equal(docs.FILE, "rm removes each specified file.");
+  assert.ok(docs.TARGET.length > 600);
+  assert.equal(docs.absent, undefined);
+});
+
+test("an explicit operand definition wins over an incidental mention", () => {
+  const html = `<h1 id="DESCRIPTION">DESCRIPTION</h1>
+    <p class="Pp">See FILE below.</p>
+    <h1 id="OPERANDS">OPERANDS</h1>
+    <dt>FILE</dt><dd>The input file.<p class="Pp">Further details.</p></dd>`;
+  assert.equal(operandDocs(html, ["FILE"]).FILE, "The input file. Further details.");
+});
+
+test("a marked operand definition wins over general introductory mentions", () => {
+  const html = `<h1 id="DESCRIPTION">DESCRIPTION</h1>
+    <p class="Pp">ssh is a program for executing commands.</p>
+    <p class="Pp">Use this command with care.</p>
+    <p class="Pp">If a <i>command</i> is specified, it is executed on the remote host. Further source detail.</p>`;
+  assert.equal(operandDocs(html, ["command"]).command,
+    "If a command is specified, it is executed on the remote host. Further source detail.");
 });

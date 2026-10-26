@@ -25,9 +25,14 @@ export function splitCommand(page, args) {
     if (!PROGRAM.test(String(value).split(":")[0])) continue;
     const at = args.findIndex((arg, i) => i >= from && (end < 0 || i < end) && (arg.text === flag || arg.text.split("=")[0] === flag));
     if (at < 0 || at + 1 >= args.length) continue;
+    // A command-taking action may delimit its arguments in its documented
+    // usage. The terminator belongs to the action, not the nested program.
+    const terminators = (page.options ?? []).filter((o) => o.names.includes(flag))
+      .map((o) => o.usage?.split(/\s+/).at(-1)).filter((word) => word === ";" || word === "+");
+    const stop = args.findIndex((arg, i) => i > at + 1 && terminators.includes(arg.text.replace(/^\\/, "")));
     return [{
-      head: args.slice(0, at + 1),
-      nested: { name: args[at + 1].text, span: args[at + 1].span, args: args.slice(at + 2) },
+      head: stop < 0 ? args.slice(0, at + 1) : [...args.slice(0, at + 1), ...args.slice(stop)],
+      nested: { name: args[at + 1].text, span: args[at + 1].span, args: args.slice(at + 2, stop < 0 ? undefined : stop) },
     }];
   }
 

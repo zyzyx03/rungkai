@@ -16,26 +16,26 @@
 // (a space, then the value) and the man macros write "-e, --regexp=PATTERNS".
 // The mdoc value may have parts: "bind_address:port" is one value in two.
 export function optionArg(entry) {
-  const args = [...entry.matchAll(/<var class="Ar">([^<]*)<\/var>/g)].map((m) => m[1].trim()).filter(Boolean);
+  const args = [...entry.matchAll(/<var class="Ar">([^<]*)<\/var>/g)].map((m) => text(m[1])).filter((v) => v && !isPlaceholder(v));
   if (args.length) return args.join(":");
 
   // The man macros name the value in italics, but they use italics for the
   // operands too: "tar -A [OPTIONS] ARCHIVE ARCHIVE" documents -A with three
   // italic words. Only the first that is not a placeholder is the value.
-  const italics = [...entry.matchAll(/<i>([^<]*)<\/i>/g)].map((m) => m[1].trim()).filter(Boolean);
+  const italics = [...entry.matchAll(/<i>([^<]*)<\/i>/g)].map((m) => text(m[1])).filter(Boolean);
   const first = italics.find((v) => !isPlaceholder(v));
   if (first) return first;
 
   // Or after an equals sign: "--regexp=PATTERNS". Or in plain text after the
-  // flag: "-D debugopts".
+  // flag: "-D debugopts". A page may also name a value as "-m <msg>".
   const flat = text(entry);
   const spans = flagSpans(flat);
   const cut = spans.length ? spans.at(-1).end : (flat.split(/\s+/)[0]?.length ?? 0);
   const rest = flat.slice(cut);
-  const eq = /=([A-Za-z][\w./:-]*)/.exec(rest);
-  if (eq) return eq[1];
-  const word = /^([A-Za-z][\w./:-]*)/.exec(rest.replace(/^[=,\s[]+/, ""));
-  return word ? word[1] : null;
+  const eq = /=(<[A-Za-z][\w.-]*>|[A-Za-z][\w./:-]*)/.exec(rest);
+  if (eq) return isPlaceholder(eq[1]) ? null : eq[1];
+  const word = /^(<[A-Za-z][\w.-]*>|[A-Za-z][\w./:-]*)/.exec(rest.replace(/^[=,\s[]+/, ""));
+  return word && !isPlaceholder(word[1]) ? word[1] : null;
 }
 
 // The flags an option entry names. A flag stands on its own: the "=" in
@@ -112,7 +112,7 @@ function synopsisHtml(html) {
 const PLACEHOLDERS = new Set(["OPTION", "OPTIONS", "ARG", "ARGS", "ARGUMENT", "ARGUMENTS"]);
 
 function isPlaceholder(name) {
-  return PLACEHOLDERS.has(String(name).toUpperCase());
+  return PLACEHOLDERS.has(String(name).replace(/^<([^<>]*)>$/, "$1").toUpperCase());
 }
 
 // The synopsis, as lines of items: the flags, the words and the brackets that
@@ -296,24 +296,112 @@ function clean(word) {
 
 // ── descriptions ───────────────────────────────────────────────────
 
-// The description of each operand: the man page's own words for it. The
-// DESCRIPTION section names the operands, so the paragraph that mentions one
-// is that operand's description.
+// Prefer a definition of the named operand, then the page's own sentence for
+// it, then prose explicitly naming it. A lowercase mention is weaker evidence:
+// retain only its own sentence, never the surrounding page introduction. No
+// match means a documentation gap.
 export function operandDocs(html, names) {
   const docs = {};
-  if (!names.length) return docs;
-  const section = /<h1[^>]*id="DESCRIPTION"[^>]*>[\s\S]*?<\/h1>([\s\S]*?)(?=<h1[^>]*id=|$)/.exec(html)?.[1] ?? "";
-  const paragraphs = [...section.matchAll(/<p class="Pp">([\s\S]*?)<\/p>/g)].map((m) => text(m[1]));
+  const bodies = sections(html, ["DESCRIPTION", "OPERANDS", "ARGUMENTS", "PARAMETERS"]);
+  const rawParagraphs = bodies.flatMap((body) => body.replace(/<dt[^>]*>[\s\S]*?<\/dt>/g, "")
+    .split(/<\/?(?:p|dd|div|dl|h[1-6])\b[^>]*>/g)).filter((p) => text(p));
+  const paragraphs = rawParagraphs.map((p) => text(p).replace(/^This manual page documents[^.]*\.\s*/i, ""));
+  const definitions = bodies.flatMap(definitionEntries);
+  const preamble = optionsPreamble(html);
   for (const name of names) {
+    const stem = escapeRe(name.replace(/(?:\(s\)|s)$/i, ""));
     const exact = new RegExp(`\\b${escapeRe(name)}\\b`);
-    const plural = new RegExp(`\\b${escapeRe(name)}(?:s|es)?\\b`);
-    const loose = new RegExp(`\\b${escapeRe(name)}\\b`, "i");
-    const hit = paragraphs.find((p) => exact.test(p))
-      ?? paragraphs.find((p) => plural.test(p))
-      ?? paragraphs.find((p) => loose.test(p));
-    if (hit) docs[name] = hit.slice(0, 600);
+    const loose = new RegExp(`\\b${stem}(?:s|es)?\\b`, "i");
+    const definition = definitions.find(([head]) => text(head).replace(/[.\s]+$/, "") === name);
+    const marked = new RegExp(`<(?:i|var|code)\\b[^>]*>\\s*${escapeRe(name)}(?:\\(s\\)|s)?\\s*</(?:i|var|code)>`);
+    const explicit = rawParagraphs.findIndex((p) => marked.test(p));
+    const own = preamble.find((p) => namesOperand(p, name));
+    const hit = definition ? text(definition[1])
+      : own
+      ?? (explicit >= 0 ? paragraphs[explicit] : paragraphs.find((p) => exact.test(p))
+        ?? paragraphs.flatMap((p) => p.split(/(?<=[.!?])\s+/)).find((p) => loose.test(p)));
+    if (hit) docs[name] = hit;
   }
   return docs;
+}
+
+// The paragraphs the OPTIONS section opens with, before the first option
+// begins. A man page sometimes says what the command does to its file there:
+// rm(1) writes "Remove (unlink) the FILE(s)." before its first flag. That
+// is the operand's own sentence, and it beats the page's opening line.
+//
+// The paragraphs after the first option are that option's description, and
+// are left alone: an mdoc page lists them in a definition list, and a man(7)
+// page writes the flag in a paragraph of its own.
+function optionsPreamble(html) {
+  const body = sections(html, ["OPTIONS"])[0];
+  if (!body) return [];
+  const out = [];
+  for (const p of body.matchAll(/<p class="Pp">([\s\S]*?)<\/p>/g)) {
+    if (/<dl\b|<dt\b/.test(body.slice(0, p.index))) break;
+    if (/^\s*<b>/.test(p[1])) break;
+    const t = text(p[1]);
+    if (t) out.push(t);
+  }
+  return out;
+}
+
+// The paragraph names the operand, and says more than the name itself: a
+// word that short is a coincidence far more often than a definition, and a
+// usage line ("verify <file>") says nothing at all.
+function namesOperand(paragraph, name) {
+  const stem = name.replace(/(?:\(s\)|s)$/i, "");
+  if (stem.length < 3 && !/^[A-Z][A-Z]+$/.test(stem)) return false;
+  const re = new RegExp(`\\b${escapeRe(stem)}(?:\\(s\\)|s)?\\b`, "i");
+  if (!re.test(paragraph)) return false;
+  const rest = paragraph.replace(re, "").replace(/<[^>]*>/g, "");
+  return rest.replace(/[^A-Za-z]/g, "").length >= 4;
+}
+
+// Read balanced bodies: a nested list/div belongs to its enclosing definition.
+export function blockBody(html, start, tag) {
+  const tags = new RegExp(`<\\/?${tag}\\b[^>]*>`, "g");
+  tags.lastIndex = start;
+  let depth = 1;
+  for (let m; (m = tags.exec(html));) {
+    depth += m[0].startsWith("</") ? -1 : 1;
+    if (!depth) return html.slice(start, m.index);
+  }
+  return html.slice(start);
+}
+
+export function definitionEntries(html) {
+  const entries = [];
+  let pending = [];
+  let previousEnd = 0;
+  for (const m of html.matchAll(/<dt[^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*>/g)) {
+    if (html.slice(previousEnd, m.index).trim()) pending = [];
+    const start = m.index + m[0].length;
+    let body = blockBody(html, start, "dd");
+    let end = start + body.length + "</dd>".length;
+    // man(7) .RS may close the list before indenting the definition's table.
+    // It is still this definition, up to the next named term or heading.
+    const indent = /^\s*<\/dl>\s*<div class="Bd-indent">/.exec(html.slice(end));
+    if (indent) {
+      const nestedStart = end + indent[0].length;
+      const nested = blockBody(html, nestedStart, "div");
+      body += " " + nested;
+      end = nestedStart + nested.length + "</div>".length;
+    }
+    // An empty term resumes the preceding definition after that indentation.
+    const continuation = /^\s*(?:<dl[^>]*>\s*)?<dt><\/dt>\s*<dd[^>]*>/.exec(html.slice(end));
+    if (continuation) body += " " + blockBody(html, end + continuation[0].length, "dd");
+    const entry = [m[1], body];
+    entries.push(entry);
+    if (text(body)) {
+      // Consecutive empty definitions are alternate usage lines for the
+      // definition that follows, as emitted by man(7)'s repeated .TP.
+      for (const alias of pending) alias[1] = body;
+      pending = [];
+    } else pending.push(entry);
+    previousEnd = end;
+  }
+  return entries;
 }
 
 export function text(html) {

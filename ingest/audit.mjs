@@ -10,6 +10,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "../test/parser.mjs";
 import { explain } from "../src/lib/explain.js";
+import { loadPage } from "../src/lib/pages.js";
 import { resolveCommands } from "../src/lib/wrap.js";
 
 // The forms a person writes an option in. Each is a command line of its own,
@@ -54,28 +55,23 @@ export function loadPages(dir) {
   return pages;
 }
 
-export function loadPage(pages) {
-  return (tool, args = []) => {
-    const path = [tool];
-    for (const arg of args) {
-      if (arg.text.startsWith("-") || path.length >= 3) break;
-      path.push(arg.text);
-    }
-    for (let n = path.length; n >= 1; n--) {
-      const page = pages.get(path.slice(0, n).join("-"));
-      if (page) return { ...page, subArgs: n - 1 };
-    }
-    return null;
-  };
-}
-
 // Every command line the corpus implies, and what the explainer makes of
 // them: the flags it could not place, and the options it had no words for.
 export async function audit(pages) {
   const unexplained = [];
   const silent = [];
+  const documentationGaps = [];
   let checked = 0;
   for (const page of pages.values()) {
+    for (const [kind, entries] of [["option", page.options ?? []], ["operand", page.operands ?? []]]) {
+      for (const entry of entries) {
+        const label = `${page.cmd}: ${kind} ${entry.names?.join(", ") ?? entry.name}`;
+        if (!entry.desc?.trim()) {
+          if (entry.gap === true) documentationGaps.push(label);
+          else silent.push(label);
+        } else if (entry.gap) silent.push(`${label}: has both text and a gap marker`);
+      }
+    }
     if (page.builtin) continue;
     for (const cmd of commandsFor(page)) {
       const parsed = parse(cmd);
@@ -88,24 +84,20 @@ export async function audit(pages) {
       if (unknown.length || gaps.length) {
         unexplained.push(`${page.cmd}: ${cmd} → undocumented ${unknown.join(" ")}${gaps.length ? `, no page for ${gaps.join(" ")}` : ""}`);
       }
-      for (const segment of result.segments) {
-        if (segment.kind === "arg" && !segment.anchor?.desc) {
-          silent.push(`${page.cmd}: ${segment.text}`);
-          break;
-        }
-      }
     }
   }
-  return { checked, unexplained, silent };
+  return { checked, unexplained, silent, documentationGaps };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const dir = process.argv[2] ?? ".corpus/noble/pages";
   const pages = loadPages(dir);
-  const { checked, unexplained, silent } = await audit(pages);
+  const { checked, unexplained, silent, documentationGaps } = await audit(pages);
   console.log(`${pages.size} pages, ${checked} command lines checked`);
   console.log(`\n${unexplained.length} leave something unexplained:`);
   for (const line of unexplained.slice(0, 40)) console.log("  " + line);
-  console.log(`\n${silent.length} give an option no words of its own:`);
+  console.log(`\n${silent.length} missing descriptions without an explicit gap:`);
   for (const line of silent.slice(0, 40)) console.log("  " + line);
+  console.log(`\n${documentationGaps.length} explicit documentation gaps`);
+  if (silent.length || unexplained.length) process.exitCode = 1;
 }

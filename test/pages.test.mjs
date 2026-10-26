@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { matchArg } from "../src/lib/pages.js";
+import { matchArg, loadPage } from "../src/lib/pages.js";
 
 const tar = {
   options: [
@@ -61,4 +61,26 @@ test("mode context chooses between entries sharing a short flag", () => {
   assert.equal(matchArg("-i", ambiguous, { prefer: "--install" }).desc, "install");
   assert.equal(matchArg("-i", ambiguous, { prefer: "--info" }).desc, "info");
   assert.equal(matchArg("-i", ambiguous).desc, "info");
+});
+
+// The page a command names, and the key the corpus is asked by.
+const pages = new Map([
+  ["ls", { cmd: "ls" }],
+  ["docker-run", { cmd: "docker-run" }],
+]);
+
+test("a subcommand names its own page", () => {
+  const find = loadPage(pages);
+  assert.equal(find("docker", [{ text: "run" }]).cmd, "docker-run");
+  assert.equal(find("docker", [{ text: "run" }, { text: "nginx" }]).cmd, "docker-run");
+  assert.equal(find("ls", []).cmd, "ls");
+});
+
+test("a long argument is not a page name, so it never reaches the key", () => {
+  // R2 refuses a key over 1024 bytes, and the key is built from the words
+  // the command names. A file name is not a page name.
+  const find = loadPage(pages);
+  const found = find("ls", [{ text: "x".repeat(1500) }]);
+  assert.equal(found.cmd, "ls");
+  assert.equal(found.subArgs, 0);
 });

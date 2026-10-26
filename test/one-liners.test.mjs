@@ -6,7 +6,8 @@ import { parse } from "./parser.mjs";
 import { explain } from "../src/lib/explain.js";
 import { resolveCommands } from "../src/lib/wrap.js";
 import { CONSTRUCTS } from "../src/lib/syntax.js";
-import { audit } from "../ingest/audit.mjs";
+import { audit, loadPages } from "../ingest/audit.mjs";
+import { loadPage } from "../src/lib/pages.js";
 
 // The one-liners people actually type. Each one must be fully explained by
 // the corpus: no flag left undocumented, and no tool left with no page.
@@ -16,29 +17,6 @@ const cmds = JSON.parse(readFileSync("test/fixtures/one-liners.json", "utf8"));
 // machine when it has been built.
 const SAMPLE = "test/fixtures/corpus";
 const CORPUS = ".corpus/noble/pages";
-
-function loadPages(dir) {
-  const pages = new Map();
-  for (const file of readdirSync(dir)) {
-    if (file.endsWith(".json")) pages.set(file.replace(/\.json$/, ""), JSON.parse(readFileSync(join(dir, file), "utf8")));
-  }
-  return pages;
-}
-
-// The corpus may hold a page for a command path, not just the binary:
-// "docker run" is docker-run(1).
-const loadPage = (pages) => (tool, args = []) => {
-  const path = [tool];
-  for (const arg of args) {
-    if (arg.text.startsWith("-") || path.length >= 3) break;
-    path.push(arg.text);
-  }
-  for (let n = path.length; n >= 1; n--) {
-    const page = pages.get(path.slice(0, n).join("-"));
-    if (page) return { ...page, subArgs: n - 1 };
-  }
-  return null;
-};
 
 // The whole pipeline, as the worker runs it.
 async function run(cmd, pages) {
@@ -62,6 +40,10 @@ test("no popular one-liner leaves a flag the corpus does not document", async ()
 
 test("no popular one-liner leaves a tool the corpus has no page for", async () => {
   const pages = loadPages(SAMPLE);
+  for (const [name, page] of pages) {
+    assert.equal(typeof page.env, "string", `${name} fixture needs its corpus environment`);
+    assert.ok(page.env.length, `${name} fixture needs a nonempty environment`);
+  }
   const bad = [];
   for (const cmd of cmds) {
     const gaps = (await run(cmd, pages)).gaps;
@@ -214,7 +196,10 @@ test("quoted flag words are operands or option values and keep their original sp
   const ls = await run('ls "-la"', pages);
   assert.equal(ls.segments.find((s) => s.text === '"-la"').kind, "operand");
   const git = await run('git commit -m "-q"', pages);
-  assert.equal(git.segments.find((s) => s.text === '"-q"').kind, "operand");
+  const message = git.segments.find((s) => s.text === '"-q"');
+  assert.equal(message.kind, "arg");
+  assert.equal(message.anchor.key, git.segments.find((s) => s.text === "-m").anchor.key);
+  assert.equal(message.anchor.value, "<msg>");
   assert.equal(git.segments.some((s) => s.anchor?.title.includes("--quiet")), false);
   for (const cmd of ['ssh -i "-N"', "ssh -i -N", "ssh -i --"]) {
     const result = await run(cmd, pages);
@@ -244,4 +229,53 @@ test("a documented plus attribute is an option and the next word is the file", a
   assert.equal(option.kind, "arg");
   assert.match(option.anchor.desc, /cannot be modified/);
   assert.equal(result.segments.find((s) => s.text === "config.conf").anchor.title, "files");
+});
+
+test("every fixture option and operand carries source text or an explicit gap", async () => {
+  const { silent } = await audit(loadPages(SAMPLE));
+  assert.deepEqual(silent, []);
+});
+
+for (const dir of [".corpus/noble/pages", ".corpus/el9/pages", ".corpus/alpine/3.22/pages", ".corpus/docker/pages"]) {
+  test(`${dir}: every option and operand carries source text or an explicit gap`, {
+    skip: !existsSync(dir),
+  }, async () => {
+    const { silent } = await audit(loadPages(dir));
+    assert.deepEqual(silent, []);
+  });
+}
+
+test("the example preserves full option prose and the operand's own meaning", async () => {
+  const pages = loadPages(SAMPLE);
+  const result = await run("find /var/log -type f -name '*.log' -mtime +30 -exec rm -rf {} +", pages);
+  const desc = (text) => result.segments.find((s) => s.text === text)?.anchor?.desc;
+  assert.equal(result.segments.find((s) => s.text === "/var/log").anchor, null);
+  assert.match(desc("-type"), /f regular file/);
+  assert.match(desc("-type"), /more than one type/);
+  assert.match(desc("-name"), /fnmatch\(3\)/);
+  assert.match(desc("-name"), /Don't forget to enclose the pattern in quotes/);
+  assert.match(desc("-mtime"), /rounding affects/);
+  // The command used the "+" form of -exec, so that is the form the page's own words come from: find(1) writes "-exec command ;" and "-exec command {} +" as two entries.
+  assert.match(desc("-exec"), /command line is built by appending each selected file name/);
+  assert.equal(result.segments.find((s) => s.text === "-exec").anchor.title, "-exec command {} +");
+  assert.equal(desc("+"), desc("-exec"));
+  assert.equal(desc("-r"), "remove directories and their contents recursively");
+  // The operand's own words, not the page's opening line: rm(1) writes
+  // "Remove (unlink) the FILE(s)." in the OPTIONS section, before its first
+  // flag, and that is what the operand means.
+  assert.equal(desc("{}"), "Remove (unlink) the FILE(s).");
+  assert.notEqual(desc("{}"), pages.get("rm").description);
+  assert.equal(result.segments.find((s) => s.text === "+").anchor.key, "find:-exec");
+  assert.match(pages.get("find").description, /GNU find searches the directory tree/);
+  assert.equal(result.segments.find((s) => s.text === "find").anchor.options.length, pages.get("find").options.length);
+});
+
+test("the description audit detects deleted option and operand text", async () => {
+  for (const kind of ["options", "operands"]) {
+    const pages = loadPages(SAMPLE);
+    const entry = pages.get("rm")[kind].find((entry) => entry.desc);
+    delete entry.desc;
+    const { silent } = await audit(pages);
+    assert.ok(silent.some((line) => line.startsWith("rm:")), `${kind} deletion must fail the audit`);
+  }
 });

@@ -38,8 +38,8 @@ typography:
     lineHeight: 25.5px
   prose:
     fontFamily: Ubuntu Sans
-    fontSize: 14px
-    lineHeight: 24px
+    fontSize: 16px
+    lineHeight: 26.4px
   caption:
     fontFamily: Ubuntu Sans
     fontSize: 13px
@@ -152,7 +152,7 @@ Tokyo Night, one colour per token role, plus one neon accent:
   sentence: standfirst, entry prose, the recommender's rationale, captions.
 - **System mono** carries what the reader could type or cite: the command slab,
   synopsis, tokens, entry headings, badges, status, links, sample commands.
-- Steps: body 15, prose 14, caption 13, small 12.5, mono-meta 11, command 13.5.
+- Steps: body 15, prose 16, caption 13, small 12.5, mono-meta 11, command 13.5.
   Nothing between these steps, and nothing below 11px: a button, a link or a
   label under 11px is a legibility failure, not a style choice. Two roles sit on
   a step: **section** (Orbitron 12.5px, tracked 0.16em) for the headings that
@@ -167,6 +167,14 @@ Tokyo Night, one colour per token role, plus one neon accent:
   set in from it by the 120px connector gutter. The explainer is the same width
   as the command slab, so the diagram never grows wider than the field it
   belongs to.
+- Explanation prose (entry bodies, plain-English answers and suggestion
+  rationales) uses Ubuntu Sans 16px/26.4px with pretty wrapping and ink
+  `#b8c0e0`. Entry headings retain mono 14.5px and use weight 600. References
+  use muted ink `#a9b1d6`; flashed references and source chips brighten to
+  `#c0c8e3`. Role labels mix their existing role color with ink so they remain
+  legible on resting, active and flashed panels. Example descriptions and
+  labels, mode-menu guidance and suggestion metadata use muted ink. Branding, control typography,
+  container sizes and diagram geometry are unchanged.
 
 ## Layout
 
@@ -353,7 +361,7 @@ edge. Connector paths carry a 3px coloured bloom.
 - **Entry**: a man-page definition. A panel tinted 7% with its token colour
   and edged in it, holding the term in mono 14.5px, a kind tag beside it
   (command, builtin, option, argument, shell syntax, undocumented) in the role
-  colour, the description in Ubuntu Sans 15px hung under the term, and a
+  colour, the description in Ubuntu Sans 16px hung under the term, and a
   reference line giving the page it came from. An option that takes a value
   says so beside its tag — "takes identity_file" — in the role colour at 70%,
   so the word that follows it is never a mystery.

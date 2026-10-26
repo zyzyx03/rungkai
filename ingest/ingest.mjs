@@ -7,8 +7,8 @@ import { gunzipSync } from "node:zlib";
 import { mkdirSync, writeFileSync, readdirSync, readFileSync, existsSync, rmSync, lstatSync, readlinkSync } from "node:fs";
 import { join, basename } from "node:path";
 import { synopsisOptions } from "./synopsis.mjs";
-import { flagParagraphOptions, proseOptions, alternativeFlags, synonymFlags } from "./flags.mjs";
-import { optionValues, synopsisFacts, operandDocs, text as plain } from "./operands.mjs";
+import { parseOptions, proseOptions } from "./flags.mjs";
+import { optionValues, synopsisFacts, operandDocs, definitionEntries, text as plain } from "./operands.mjs";
 
 const argv = process.argv.slice(2);
 let release = "noble";
@@ -64,13 +64,14 @@ const debs = join(work, "debs");
 const out = fromDir ? `.corpus/${envId}/pages` : join(work, "pages");
 // The corpus is a build, and a build starts from nothing: a page that is no
 // longer written must not stay behind.
-rmSync(out, { recursive: true, force: true });
-mkdirSync(out, { recursive: true });
 
 if (!has("mandoc")) {
   console.error("mandoc is required: sudo apt install mandoc");
   process.exit(1);
 }
+
+rmSync(out, { recursive: true, force: true });
+mkdirSync(out, { recursive: true });
 
 let manRoot = fromDir;
 if (!manRoot) {
@@ -177,6 +178,7 @@ let skipped = 0;
 // pages are in, so that a builtin with a page of its own (echo, kill) keeps
 // it.
 const builtins = [];
+// Only command manuals (1 and 8): sectionless keys cannot distinguish crontab(1) from crontab(5).
 for (const dir of ["man1", "man8"]) {
   const path = join(manRoot, dir);
   if (!existsSync(path)) continue;
@@ -216,19 +218,37 @@ for (const dir of ["man1", "man8"]) {
     const facts = synopsisFacts(html, tool);
     const values = { ...listed };
     for (const [flag, value] of Object.entries(facts.values)) values[flag] = value;
-    // A flag the synopsis shows takes no value unless the synopsis gives it one.
-    for (const flag of facts.shown) if (!(flag in facts.values)) delete values[flag];
+    // A missing synopsis value must not erase an explicit <value> from the
+    // option list; otherwise the synopsis can discard prose mistaken for one.
+    for (const flag of facts.shown) {
+      if (!(flag in facts.values) && !/^<[A-Za-z][\w.-]*>$/.test(listed[flag] ?? "")) delete values[flag];
+    }
     // A value named true or false is the flag's default, not a word the user
     // types: "docker ps --all" takes nothing.
     for (const [flag, value] of Object.entries(values)) {
       if (DEFAULTS.has(value)) delete values[flag];
+    }
+    for (const option of options) {
+      if (!option.desc || option.synopsis) {
+        const documented = options.find((other) => other !== option && !other.synopsis && other.desc
+          && other.names.length === option.names.length && other.names.every((name) => option.names.includes(name)));
+        if (documented) {
+          option.desc = documented.desc;
+          delete option.gap;
+          delete option.synopsis;
+        }
+      }
+      if (!option.desc || option.synopsis) {
+        option.desc = "";
+        option.gap = true;
+      }
     }
     const docs = operandDocs(html, facts.operands);
     const operands = facts.operands
       // A symbolic mode expanded into attribute options is no longer a
       // positional argument; the next word is the file it applies to.
       .filter((operand) => operand !== "mode" || !options.some((o) => o.names.some((n) => n.startsWith("+"))))
-      .map((operand) => ({ name: operand, desc: docs[operand] ?? "" }));
+      .map((operand) => ({ name: operand, desc: docs[operand] ?? "", ...(!docs[operand] ? { gap: true } : {}) }));
 
     const page = {
       cmd: tool,
@@ -238,6 +258,7 @@ for (const dir of ["man1", "man8"]) {
       source: sourceFor(dir, name, tool),
       licence: licenceOf(html),
       synopsis: synopsisOf(html),
+      description: plain(section(html, "DESCRIPTION")),
       options,
       values,
       operands,
@@ -326,6 +347,7 @@ for (const [name, target] of linkAliases(work)) {
 let builtinCount = 0;
 for (const page of builtins) {
   if (existsSync(join(out, `${page.cmd}.json`))) continue;
+  for (const option of page.options) if (!option.desc) option.gap = true;
   writeFileSync(join(out, `${page.cmd}.json`), JSON.stringify(page));
   builtinCount++;
 }
@@ -410,8 +432,12 @@ function titleCase(text) {
 }
 
 // The body of a section of a page, as html.
+//
+// The heading is not part of the body. mandoc writes it inside the <h1>,
+// wrapped in a permalink anchor, so reading the section from the opening
+// tag leaves the word DESCRIPTION at the front of every page's prose.
 function section(html, id) {
-  return new RegExp(`<h1[^>]*id="${id}"[^>]*>([\\s\\S]*?)(?=<h1[^>]*id=|$)`).exec(html)?.[1] ?? "";
+  return new RegExp(`<h1[^>]*id="${id}"[^>]*>[\\s\\S]*?</h1>([\\s\\S]*?)(?=<h1[^>]*id=|$)`).exec(html)?.[1] ?? "";
 }
 
 // The shell's builtins, one page each. bash(1) keeps them in a section of
@@ -422,7 +448,8 @@ function builtinPages(html, bash) {
   const section = /<h1[^>]*id="SHELL_BUILTIN_COMMANDS"[^>]*>([\s\S]*?)(?=<h1[^>]*id=|$)/.exec(html)?.[1];
   if (!section) return [];
   const byName = new Map();
-  for (const pair of section.matchAll(/<dt[^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/g)) {
+  for (const [head, body] of definitionEntries(section)) {
+    const pair = [null, head, body];
     // The name is the usage line's first word, and the page's anchor for it
     // is not the name: bash(1) numbers the entries that share one.
     const name = plain(/<b>([^<]*)<\/b>/.exec(pair[1])?.[1] ?? "");
@@ -436,14 +463,19 @@ function builtinPages(html, bash) {
       if (m.startsWith("--")) flags.push(m);
       else for (const c of m.slice(1)) flags.push(`-${c}`);
     }
-    const sentences = plain(pair[2]).split(/(?<=\.)\s+/).filter(Boolean);
-    const entry = byName.get(name) ?? { name, flags: new Set(), sentences: [] };
+    const sentences = [plain(pair[1]), plain(pair[2])].filter(Boolean);
+    const entry = byName.get(name) ?? { name, flags: new Set(), sentences: [], options: [], usage: [], bodies: [] };
+    entry.options.push(...parseOptions(body));
+    entry.usage.push(`<p class="Pp">${head}</p>`);
+    entry.bodies.push(body);
     for (const flag of flags) entry.flags.add(flag);
     entry.sentences.push(...sentences);
     byName.set(name, entry);
   }
   return [...byName.values()].map((entry) => {
-    const synopsis = entry.sentences[0] ?? "";
+    const synopsis = entry.sentences[1] ?? "";
+    const facts = synopsisFacts(`<h1 id="SYNOPSIS">SYNOPSIS</h1>${entry.usage.join(" ")}`, entry.name);
+    const docs = operandDocs(`<h1 id="DESCRIPTION">DESCRIPTION</h1>${entry.bodies.join(" ")}`, facts.operands);
     return {
       cmd: entry.name,
       env: bash.env,
@@ -451,58 +483,16 @@ function builtinPages(html, bash) {
       source: bash.source,
       licence: bash.licence,
       synopsis,
+      description: entry.sentences.slice(1).join(" "),
       options: [...entry.flags].map((flag) => ({
         names: [flag],
-        // The sentence that says what the flag does, when the page says it.
-        desc: entry.sentences.find((s) => s.includes(flag)) ?? synopsis,
+        // Its definition, or the full source paragraph naming it; no synopsis fallback.
+        desc: entry.options.find((o) => o.names.includes(flag) && o.desc)?.desc ?? entry.sentences.find((s, i) => i > 0 && new RegExp(`(^|[\\s,])${flag}(?=[\\s,.;:]|$)`).test(s)) ?? "",
       })),
-      values: {},
-      operands: [],
+      values: facts.values,
+      operands: facts.operands.map((name) => ({ name, desc: docs[name] ?? "", ...(!docs[name] ? { gap: true } : {}) })),
     };
   });
-}
-
-// mandoc renders .It Fl/.TP as a definition list, but pages written with .IP or
-// .RS (git, systemd, many others) as <p>-then-indented-div. Handle both.
-function parseOptions(html) {
-  // A page may name an option with a placeholder: git's "-<number>". The
-  // placeholder is part of the name, and what it stands for is what the
-  // page says it stands for.
-  const OPTION_NAME = /(?:^|[\s,])(--?(?:[A-Za-z0-9][\w-]*|<[A-Za-z][A-Za-z0-9_-]*>)|\+[A-Za-z0-9])/g;
-  const options = [];
-  const push = (nameHtml, descHtml) => {
-    const text = plain(nameHtml).replace(/\s+/g, " ").trim();
-    if (!/^[-+]/.test(text) || text.length > 160) return;
-    const names = [...text.matchAll(OPTION_NAME)].map((m) => m[1]);
-    if (names.length === 0) return;
-    options.push({
-      names: [...new Set(names)],
-      desc: plain(descHtml).replace(/\s+/g, " ").trim(),
-    });
-  };
-
-  // mdoc emits class="Bl-tag" or class="Bl-tag Bl-compact"; match every dt/dd
-  // pair and let push() reject the ones that are not options.
-  for (const pair of html.matchAll(/<dt[^>]*>([\s\S]*?)<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/g)) {
-    push(pair[1], pair[2]);
-  }
-  for (const pair of html.matchAll(/<p class="Pp">((?:(?!<\/p>)[\s\S])*?)<\/p>\s*<div class="Bd-indent">((?:(?!<\/div>)[\s\S])*?)<\/div>/g)) {
-    push(pair[1], pair[2]);
-  }
-  // The name-then-blank-dt form (sed, timeout, watch): the option name is
-  // in the paragraph above, and the description in the dd that follows an
-  // empty dt.
-  for (const pair of html.matchAll(/<p class="Pp HP">((?:(?!<\/p>)[\s\S])*?)<\/p>[\s\S]*?<dt><\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/g)) {
-    push(pair[1], pair[2]);
-  }
-
-  // man(7) pages (docker-style tooling) print each flag as its own paragraph.
-  options.push(...flagParagraphOptions(html, new Set(options.flatMap((o) => o.names))));
-  // A page may document a thing in several forms and list them.
-  options.push(...alternativeFlags(html, new Set(options.flatMap((o) => o.names))));
-  // A page may say that one flag is another's name.
-  options.push(...synonymFlags(html, new Set(options.flatMap((o) => o.names))));
-  return options;
 }
 
 function synopsisOf(html) {
@@ -518,7 +508,8 @@ function synopsisOf(html) {
 }
 
 function licenceOf(html) {
-  const m = html.match(/<h1[^>]*id="COPYRIGHT"[^>]*>([\s\S]*?)(?=<h1|<\/section>|$)/i);
+  // The heading is not part of the licence, the same as in section().
+  const m = html.match(/<h1[^>]*id="COPYRIGHT"[^>]*>[\s\S]*?<\/h1>([\s\S]*?)(?=<h1|<\/section>|$)/i);
   return m ? plain(m[1]).replace(/\s+/g, " ").trim().slice(0, 2000) : "";
 }
 

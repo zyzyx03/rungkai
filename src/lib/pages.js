@@ -1,4 +1,35 @@
 // Matching an argument token to a man-page option entry.
+
+// The page a command names: the tool, and the subcommand words after it.
+//
+// A page is named after a tool — "docker-run" — so only a word that could be
+// a name goes into the path. A long argument is a file, not a subcommand,
+// and it must not end up in the key the corpus is asked by: R2 refuses a key
+// over 1024 bytes, and one long argument is enough to reach that.
+const NAME = /^[A-Za-z0-9][A-Za-z0-9._+-]{0,31}$/;
+
+export function pagePath(tool, args = []) {
+  const path = [tool];
+  for (const arg of args) {
+    if (path.length >= 3 || !NAME.test(arg.text)) break;
+    path.push(arg.text);
+  }
+  return path;
+}
+
+// The page of a command, from pages already held in memory: the longest path
+// the command names first, so "docker run" finds docker-run(1).
+export function loadPage(pages) {
+  return (tool, args = []) => {
+    const path = pagePath(tool, args);
+    for (let n = path.length; n >= 1; n--) {
+      const page = pages.get(path.slice(0, n).join("-"));
+      if (page) return { ...page, subArgs: n - 1 };
+    }
+    return null;
+  };
+}
+
 export function matchArg(text, page, { prefer } = {}) {
   const arg = text;
   if (arg === "--") return null;
@@ -25,11 +56,11 @@ export function matchArg(text, page, { prefer } = {}) {
   if (arg.startsWith("--")) {
     const name = arg.split("=")[0];
     const hit = find(name);
-    return hit ? { names: hit.names, desc: hit.desc, at, value: valueOf(page, hit.names) } : null;
+    return hit ? { names: hit.names, desc: hit.desc, usage: hit.usage ?? null, at, value: valueOf(page, hit.names) } : null;
   }
 
   const whole = find(arg);
-  if (whole) return { names: whole.names, desc: whole.desc, at, value: valueOf(page, whole.names) };
+  if (whole) return { names: whole.names, desc: whole.desc, usage: whole.usage ?? null, at, value: valueOf(page, whole.names) };
 
   // A bundle is a run of short flags, and only a dash can start one: date's
   // "+%Y-%m-%d" is a format, not the -d option with a prefix. A page that
@@ -48,7 +79,7 @@ export function matchArg(text, page, { prefer } = {}) {
     const part = i === 0 && !cluster ? `-${c}` : c;
     const hit = find(name);
     if (hit) {
-      parts.push({ text: part, offset, name, names: hit.names, desc: hit.desc, value: valueOf(page, hit.names) });
+      parts.push({ text: part, offset, name, names: hit.names, desc: hit.desc, usage: hit.usage ?? null, value: valueOf(page, hit.names) });
     } else if (parts.at(-1)?.value) {
       // The rest of the cluster is the value of the flag before it: "-f1".
       const rest = arg.slice(offset);
@@ -99,3 +130,18 @@ export function matchValue(match) {
   return match.value ?? null;
 }
 
+
+// A page may document one option in more than one form: find(1) writes
+// "-exec command ;" and "-exec command {} +" as two entries with two
+// explanations. The command says which form it used — a form's own last word
+// ends its usage line — so the form is the one whose ending the command
+// carries.
+export function formUsed(page, names, args) {
+  const forms = (page?.options ?? []).filter((o) => o.names.some((n) => names.includes(n)) && o.usage);
+  if (forms.length < 2) return null;
+  const used = forms.filter((o) => {
+    const ending = o.usage.split(/\s+/).at(-1);
+    return ending && args.some((a) => a.text.replace(/^\\/, "") === ending);
+  });
+  return used.length === 1 ? used[0] : null;
+}

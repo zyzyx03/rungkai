@@ -191,6 +191,7 @@ body {
   background-color: color-mix(in srgb, var(--role, #7aa2f7) 7%, #1a1b26);
   border-color: color-mix(in srgb, var(--role, #7aa2f7) 30%, transparent);
 }
+.entry h3 { font-weight: 600; }
 .results.has-intro .entry {
   animation: entry-in 0.42s ease-out both;
   animation-delay: calc(var(--i, 0) * 45ms + 0.72s);
@@ -201,6 +202,13 @@ body {
      under `fill: both`, and the hover-dim in `.results.hovering` would
      never reach it. */
 }
+.value-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--role, #7aa2f7) 70%, #a9b1d6);
+}
 .kind-tag {
   padding: 0.1rem 0.4rem;
   border: 1px solid color-mix(in srgb, var(--role, #7aa2f7) 34%, transparent);
@@ -210,22 +218,16 @@ body {
   line-height: 1.4;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--role, #7aa2f7);
-}
-.value-tag {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  line-height: 1.4;
-  letter-spacing: 0.06em;
-  color: color-mix(in srgb, var(--role, #7aa2f7) 70%, #a9b1d6);
+  color: color-mix(in srgb, var(--role, #7aa2f7) 85%, #eef0f6);
 }
 .entry-body {
   margin-top: 0.7rem;
   padding-left: 1.5rem;
   max-width: 68ch;
-  font-size: 15px;
-  line-height: 1.75;
-  color: #a9b1d6;
+  font-size: 16px;
+  line-height: 1.65;
+  text-wrap: pretty;
+  color: #b8c0e0;
 }
 .entry-ref {
   display: flex;
@@ -236,8 +238,8 @@ body {
   margin-top: 1.1rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12.5px;
-  /* ink-soft: dim loses AA on the role-tinted entry panels. */
-  color: #8b93b8;
+  /* References stay secondary while remaining readable on active panels. */
+  color: #a9b1d6;
 }
 /* The source is a chip: a filled box with the man page's mark, so the
    provenance reads as something you can open, not as another word. */
@@ -272,6 +274,13 @@ body {
 .token.is-active { color: var(--token-color); text-shadow: 0 0 12px var(--token-color); }
 .entry.is-active { background-color: color-mix(in srgb, var(--role, #7aa2f7) 15%, #202233); }
 .entry.is-flash { background-color: color-mix(in srgb, var(--role, #7aa2f7) 24%, #202233); }
+/* The brighter selection wash needs brighter reference and role text too. */
+.entry.is-flash .entry-ref,
+.entry.is-flash .source-chip { color: #c0c8e3; }
+.entry:is(.is-active, .is-flash) .kind-tag,
+.entry:is(.is-active, .is-flash) .value-tag {
+  color: color-mix(in srgb, var(--role, #7aa2f7) 70%, #eef0f6);
+}
 .connectors g { transition: opacity .18s ease, filter .18s ease; }
 .results.hovering .connectors g:not(.is-active) { opacity: 0; }
 .connectors g.is-active path { stroke-width: 2.4; stroke-opacity: 1; filter: drop-shadow(0 0 7px var(--path-color)); }
@@ -421,10 +430,21 @@ body {
 #suggestion.is-collapsed .suggestion-chevron { transform: rotate(180deg); }
 .tldr-text {
   margin: 0.45rem 0 0;
-  font-size: 14px;
-  line-height: 1.7;
-  color: #a9b1d6;
+  font-size: 16px;
+  line-height: 1.65;
+  max-width: 68ch;
+  text-wrap: pretty;
+  color: #b8c0e0;
 }
+#suggestion-rationale {
+  font-size: 16px;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+#suggestion-rationale:not(.text-signal) { color: #b8c0e0; }
+#suggestion-basis,
+#suggestion-ground,
+#suggestion-assumed { color: #a9b1d6; }
 /* The warning the model led with. A filled box in the signal colour, the
    language of the source chip: this is the one thing on the page that is
    about the command rather than about its parts. */
@@ -480,7 +500,6 @@ body {
   transition: transform 0.18s ease;
 }
 #suggestion.is-collapsed .suggestion-chevron { transform: rotate(180deg); }
-.tldr-text { color: #7f88ad; }
 /* The bar that stands for the words the model is still writing. It is the
    slab's own frame, lit: a rail of neon with the light travelling along it,
    so the reader sees the model work rather than a dead panel. */
@@ -578,7 +597,7 @@ body {
 .cat-desc {
   margin: 0.35rem 0 0;
   font-size: 13px;
-  color: #7f88ad;
+  color: #a9b1d6;
 }
 .cat-count {
   flex-shrink: 0;
@@ -597,7 +616,7 @@ body {
 .ex-row-label {
   display: block;
   font-size: 13px;
-  color: #7f88ad;
+  color: #a9b1d6;
 }
 .ex-row-cmd {
   display: block;
@@ -716,7 +735,7 @@ input.neon-frame:focus-visible {
   margin-top: 0.2rem;
   padding-bottom: 0.7rem;
   font-size: 12.5px;
-  color: #8b93b8;
+  color: #a9b1d6;
 }
 .mode-option {
   display: flex;
@@ -779,7 +798,7 @@ input.neon-frame:focus-visible {
   margin-top: 0.15rem;
   font-size: 12.5px;
   line-height: 1.5;
-  color: #8b93b8;
+  color: #a9b1d6;
 }
 /* The AI mark: the same four-pointed star the suggest mode wears, drawn in
    the family's stroke. One mark, wherever the model is involved. */

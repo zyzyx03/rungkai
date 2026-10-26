@@ -29,7 +29,7 @@ const server = createServer(async (req, res) => {
       const parsed = parse(cmd);
       const pages = {};
       const commands = await resolveCommands(parsed, async (name) => {
-        try { return { ...JSON.parse(await readFile(new URL(`../fixtures/corpus/${name}.json`, import.meta.url))), env: "ubuntu/24.04" }; }
+        try { return JSON.parse(await readFile(new URL(`../fixtures/corpus/${name}.json`, import.meta.url))); }
         catch { return null; }
       }, pages);
       res.end(JSON.stringify(explain(cmd, { ...parsed, commands }, pages, env)));

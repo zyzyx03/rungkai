@@ -160,9 +160,10 @@ test("an operand the page names by that name is that operand", () => {
   assert.equal(cardOf(result, "command").title, "command");
 });
 
-test("a word with no page to name it still gets a card", () => {
+test("a word with no operand documentation gets a gap", () => {
   const result = explain("ssh host", sshParsed([{ text: "host", span: [4, 8] }]), { ssh: { synopsis: "s", source: "u" } }, "el9");
-  assert.equal(cardOf(result, "host").key, "cmd:ssh");
+  assert.equal(cardOf(result, "host").desc, null);
+  assert.equal(result.segments.find((s) => s.text === "host").gap, true);
 });
 
 test("a flag the page does not list is not mistaken for an operand", () => {

@@ -53,11 +53,13 @@ plain-English summary, the recommender and the chat.
 | `src/lib/pages.js` | Matches an argument to a man-page option entry, including bundled flags like `-zcf`. |
 | `src/lib/wrap.js` | Finds the command a command runs in turn: `sudo ss`, `find -exec rm`. |
 | `src/lib/retrieve.js` | Cosine over only the pages of the tools the command actually names. |
-| `src/worker/index.js` | The Hono Worker: `/api/explain`, `/api/tldr`, `/api/suggest`, `/api/change`, `/api/chat`. |
+| `src/worker/index.js` | The Hono Worker: `/api/explain`, `/api/tldr`, `/api/suggest` (alias `/api/change`), `/api/chat`. |
 | `src/worker/budget.js` | A Durable Object holding the $1/day token bucket. |
 | `src/client/app.js` | Synopsis tokens, connector routing, hover isolation, permalinks. |
 | `src/pages/index.astro` | The page itself. |
 | `ingest/` | Builds a corpus from man pages and moves it in and out of R2. |
+
+`POST /api/change` is a compatibility alias for `/api/suggest` that still requires a string `cmd`; `/api/suggest` can omit it for a new command.
 
 The stack is Astro (static output) served by one Hono Worker on Cloudflare
 Workers, styled with UnoCSS. Man pages live in R2, one JSON document per tool.
@@ -184,6 +186,10 @@ cp .corpus/docker/pages/*.json .corpus/el9/pages/
 
 ### Export: moving a corpus in and out of R2
 
+The site reads the corpus out of R2, so a rebuilt corpus is not live until it
+is uploaded: the pages on disk and the pages the site answers from are two
+different things. Ingesting changes the first; uploading changes the second.
+
 `ingest/upload.mjs` pushes pages into the bucket; `ingest/export.mjs` pulls
 them back out as JSON files. The two are mirrors of each other.
 
@@ -208,6 +214,11 @@ After changing a corpus, **bump `CORPUS_VERSION` in `wrangler.jsonc`** — it is
 part of the explainer cache key, so without the bump a stale answer survives
 for a day. Locally, also clear `.wrangler/state/v3/cache` and restart the dev
 server.
+
+The same goes for a change to the explainer itself: the cached answer is the
+one the old code wrote, so a new card shape stays invisible for a day unless
+the version moves. The version is the only knob: bump it whenever the answer
+would look different.
 
 ### Adding an environment
 

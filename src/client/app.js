@@ -44,8 +44,6 @@ const els = {
   suggestionGround: $("#suggestion-ground"),
   suggestionCopy: $("#suggestion-copy"),
   suggestionAgain: $("#suggestion-again"),
-  suggestionCopyBtn: $("#suggestion-copy"),
-  suggestionExplainBtn: $("#suggestion-explain"),
   suggestionToggle: $("#suggestion-toggle"),
   suggestionDismiss: $("#suggestion-dismiss"),
   suggestionExplain: $("#suggestion-explain"),
@@ -267,9 +265,11 @@ function makeEntry(seg, kind, index) {
   kindTag.className = "kind-tag";
   kindTag.textContent = categoryFor(seg, kind);
   head.append(title, kindTag);
-  // What the option takes, in the page's own words: "identity_file".
+  // What the option takes, in the page's own words: "identity_file". The
+  // heading usually says it already — "-mtime n" is the page's usage line —
+  // so the chip is only for a page that gives no usage.
   const value = seg.anchor?.value;
-  if (kind === "arg" && value && /^[A-Za-z][\w.-]*$/.test(value)) {
+  if (kind === "arg" && value && /^[A-Za-z][\w.-]*$/.test(value) && !seg.anchor?.title?.includes(value)) {
     const valueTag = document.createElement("span");
     valueTag.className = "value-tag";
     valueTag.textContent = `takes ${value}`;
@@ -281,6 +281,30 @@ function makeEntry(seg, kind, index) {
   body.textContent = bodyFor(seg, kind);
 
   article.append(head, body);
+
+  if (kind === "tool" && seg.anchor?.description) {
+    const prose = document.createElement("p");
+    prose.className = "entry-body";
+    prose.textContent = seg.anchor.description;
+    article.append(prose);
+  }
+  if (kind === "tool" && seg.anchor?.options?.length) {
+    const list = document.createElement("details");
+    const summary = document.createElement("summary");
+    summary.textContent = `All options (${seg.anchor.options.length})`;
+    list.append(summary);
+    for (const option of seg.anchor.options) {
+      const term = document.createElement("p");
+      term.className = "font-mono mt-3";
+      term.textContent = option.usage || option.names.join(", ");
+      const definition = document.createElement("p");
+      definition.className = "entry-body";
+      definition.textContent = option.desc || "The page names this option, but no description was extracted.";
+      list.append(term, definition);
+    }
+    list.addEventListener("toggle", () => drawConnectors(true));
+    article.append(list);
+  }
 
   const citation = citationFor(seg, kind);
   if (citation || seg.anchor?.url) {
@@ -312,7 +336,7 @@ function makeEntry(seg, kind, index) {
   // The other half of the route: the entry sends the reader back up to the
   // command and the bracket hanging from its token.
   article.addEventListener("click", (event) => {
-    if (event.target.closest("a, button")) return;
+    if (event.target.closest("a, button, details")) return;
     // Drag-selecting a sentence is reading, not a jump.
     if (!getSelection().isCollapsed) return;
     lockRoute(article.dataset.card);
@@ -343,6 +367,9 @@ function categoryFor(seg, kind) {
 
 function bodyFor(seg, kind) {
   if (kind === "gap") {
+    if (seg.anchor?.key && !seg.anchor.key.startsWith("gap:")) {
+      return "The page names this token, but no description was extracted. This is a documentation gap.";
+    }
     return `No page for ${seg.tool} was found in this environment, so nothing here is checked against documentation.`;
   }
   if (kind === "syntax") {
@@ -1000,7 +1027,8 @@ async function loadTldr(cmd) {
         showTldr(text);
       }
     }
-    tldrText = showTldr(text.trim()).body;
+    const { body, danger } = showTldr(text.trim());
+    tldrText = danger ? `DANGER: ${danger}\n${body}` : body;
   } catch {
     // No model, no budget, or no network: the breakdown still stands.
     if (run === tldrRun) els.tldr.hidden = true;
@@ -1073,15 +1101,15 @@ async function suggest(request) {
       els.suggestionLabel.textContent = "no shell command for this";
       els.suggestionCommand.textContent = "";
       // Nothing to copy and nothing to explain: only asking again is left.
-      els.suggestionCopyBtn.hidden = true;
-      els.suggestionExplainBtn.hidden = true;
+      els.suggestionCopy.hidden = true;
+      els.suggestionExplain.hidden = true;
     } else {
-      els.suggestionCopyBtn.hidden = false;
+      els.suggestionCopy.hidden = false;
       // Explaining a command the corpus has nothing for would show a screen
       // of red: every word in it undocumented, and no page to check any of
       // them against. The panel already says what is not in the corpus, so
       // the reader is not left guessing why there is nothing to open.
-      els.suggestionExplainBtn.hidden = !grounded.pages?.length;
+      els.suggestionExplain.hidden = !grounded.pages?.length;
     }
   } catch (error) {
     els.suggestion.classList.remove("is-pending");

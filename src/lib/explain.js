@@ -1,5 +1,5 @@
 // Turns a parse plus corpus pages into the renderable Explainer.
-import { matchArg } from "./pages.js";
+import { matchArg, formUsed } from "./pages.js";
 import { BUILTINS } from "./builtins.js";
 
 export function explain(cmd, parsed, pages, envId) {
@@ -32,7 +32,7 @@ export function explain(cmd, parsed, pages, envId) {
     const anchor = builtin
       ? { key: `builtin:${command.name}`, title: "bash(1) § Builtins", desc: builtin, url: null, env: "bash(1)" }
       : page
-        ? { key: `cmd:${label}`, title: `${label}(${page.section ?? 1})`, desc: page.synopsis, url: cite.url, env: cite.env, section: cite.section }
+        ? { key: `cmd:${label}`, title: `${label}(${page.section ?? 1})`, desc: page.synopsis, description: page.description, options: page.options, url: cite.url, env: cite.env, section: cite.section }
         : { key: `gap:${label}`, title: label, desc: null, url: null, env: null };
     pieces.push({
       kind: builtin ? "builtin" : "tool",
@@ -56,7 +56,8 @@ export function explain(cmd, parsed, pages, envId) {
     let pending = null;
     let operandAt = 0;
     let optionsEnded = false;
-    for (const arg of command.args.slice(subWords)) {
+    const optionArgs = command.args.slice(subWords);
+    for (const [at, arg] of optionArgs.entries()) {
       // A pending value consumes the next token even when it looks like a flag.
       if (pending) {
         pieces.push({
@@ -95,10 +96,16 @@ export function explain(cmd, parsed, pages, envId) {
             continue;
           }
           const key = `${command.name}:${part.names[0]}`;
+          // The page may give the option in more than one form, and the
+          // command says which one it used: find(1) writes "-exec command ;"
+          // and "-exec command {} +", and the "+" is the second form, with
+          // its own words about running the command once for all the files.
+          const form = formUsed(page, part.names, optionArgs.slice(at + 1));
           const option = {
             key,
-            title: part.names.join(", "),
-            desc: part.desc,
+            // The page's own usage line: "-mtime n", not "-mtime".
+            title: form?.usage ?? part.usage ?? part.names.join(", "),
+            desc: form?.desc ?? part.desc,
             url: cite.url,
             env: cite.env,
             section: cite.section,
@@ -122,10 +129,14 @@ export function explain(cmd, parsed, pages, envId) {
       }
       if (match) {
         const key = `${command.name}:${match.names[0]}`;
+        // The page may give the option in more than one form, and the command
+        // says which one it used.
+        const form = formUsed(page, match.names, optionArgs.slice(at + 1));
         const option = {
           key,
-          title: match.names.join(", "),
-          desc: match.desc,
+          // The page's own usage line: "-mtime n", not "-mtime".
+          title: form?.usage ?? match.usage ?? match.names.join(", "),
+          desc: form?.desc ?? match.desc,
           url: cite.url,
           env: cite.env,
           section: cite.section,
@@ -177,11 +188,10 @@ export function explain(cmd, parsed, pages, envId) {
         start: arg.span[0],
         end: arg.span[1],
         tool: label,
-        // A page that names no operand still documents the command, so the
-        // word shares the command's card rather than going unexplained.
-        anchor: operand
-          ? { key: `op:${label}:${operand.name}`, title: operand.name, desc: operand.desc, url: cite.url, env: cite.env, section: cite.section }
-          : anchor,
+        // Literal absolute paths stay plain; an undocumented operand must
+        // never borrow the command's prose as its own definition.
+        anchor: arg.text.startsWith("/") ? null
+          : { key: `op:${label}:${operand?.name ?? "?"}`, title: operand?.name ?? arg.text, desc: operand?.desc ?? null, url: cite.url, env: cite.env, section: cite.section },
       });
     }
   }
@@ -207,6 +217,9 @@ export function explain(cmd, parsed, pages, envId) {
     });
   }
 
+  for (const piece of pieces) {
+    if (["arg", "operand"].includes(piece.kind) && piece.anchor && !piece.anchor.desc) piece.gap = true;
+  }
   pieces.sort((a, b) => a.start - b.start);
   const segments = [];
   let cursor = 0;
@@ -232,7 +245,7 @@ export function explain(cmd, parsed, pages, envId) {
     sources.push({ title: "bash(1)", url: null, env: "bash(1)" });
   }
 
-  const gaps = pieces.filter((p) => p.gap).map((p) => p.tool);
+  const gaps = pieces.filter((p) => p.gap && p.anchor?.key.startsWith("gap:")).map((p) => p.tool);
   return { env: envId, segments, sources, gaps };
 }
 

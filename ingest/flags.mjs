@@ -1,3 +1,5 @@
+import { text, definitionEntries, blockBody } from "./operands.mjs";
+
 // man(7) pages (docker-style tooling) print each flag as its own paragraph:
 //   <b>-f</b>, <b>--file</b> <i>PATH</i> <br/> description
 // or with a literal tab before the description. mdoc pages use <dt>/<dd> and
@@ -56,8 +58,8 @@ export function alternativeFlags(html, known) {
   for (const m of text.matchAll(/\b(?:ways?|forms?)\b[^.;]{0,60}?(-[A-Za-z0-9]+)((?:\s*,\s*|\s+or\s+|\s+and\s+)(?:-[A-Za-z0-9]+)+)/g)) {
     const names = [m[1], ...m[2].match(/-[A-Za-z0-9]+/g)].filter((n) => !known.has(n));
     if (names.length < 2) continue;
-    const sentence = firstSentence(text, m.index ?? 0);
-    if (!sentence || sentence.length > 300) continue;
+    const sentence = paragraphAt(html, m[0]) ?? "";
+    if (!sentence) continue;
     for (const name of names) known.add(name);
     out.push({ names, desc: sentence });
   }
@@ -74,8 +76,8 @@ export function synonymFlags(html, known) {
   for (const m of text.matchAll(/(-{1,2}[A-Za-z][A-Za-z0-9-]*)\s+(?:is|are)\s+(?:an?\s+)?(?:synonym|alias)(?:\s+of|\s+for)\s+(-{1,2}[A-Za-z][A-Za-z0-9-]*)/g)) {
     const names = [m[1], m[2]].filter((n) => !known.has(n));
     if (!names.length) continue;
-    const sentence = firstSentence(text, m.index ?? 0);
-    if (!sentence || sentence.length > 300) continue;
+    const sentence = paragraphAt(html, m[0]) ?? "";
+    if (!sentence) continue;
     for (const name of names) known.add(name);
     out.push({ names, desc: sentence });
   }
@@ -84,8 +86,7 @@ export function synonymFlags(html, known) {
 
 // Some old-style pages have no OPTIONS section and name each flag in the
 // prose instead: "If the -u option is given, it specifies the name of the
-// user ...". The sentence that names the flag is its description, so take
-// that sentence rather than the whole paragraph.
+// user ...". Retain the complete paragraph that documents the flag.
 export function proseOptions(html, known) {
   const section = /<section class="Sh">\s*<h1[^>]*id="DESCRIPTION"[^>]*>[\s\S]*?(?=<section class="Sh">|$)/.exec(html)?.[0];
   if (!section) return [];
@@ -97,8 +98,8 @@ export function proseOptions(html, known) {
     for (const m of text.matchAll(/(?:^|[.;]?\s)(?:If\s+the\s+|The\s+|Using\s+)?(-{1,2}[A-Za-z0-9][\w-]*)\s+(?:option|flag)\b/g)) {
       const name = m[1];
       if (known.has(name)) continue;
-      const sentence = firstSentence(text, m.index ?? 0);
-      if (!sentence || sentence.length > 300) continue;
+      const sentence = text;
+      if (!sentence) continue;
       known.add(name);
       out.push({ names: [name], desc: sentence });
     }
@@ -106,13 +107,51 @@ export function proseOptions(html, known) {
   return out;
 }
 
-// The sentence around a point: from the last stop before it to the first
-// full stop after it.
-function firstSentence(text, at) {
-  const before = text.slice(0, at);
-  const start = Math.max(before.lastIndexOf(". "), before.lastIndexOf("; ")) + 1;
-  const after = text.slice(at);
-  const stop = after.search(/\.\s/);
-  const end = stop < 0 ? text.length : at + stop + 1;
-  return text.slice(start, end).replace(/^[,\s]+/, "").trim();
+// mandoc renders .It Fl/.TP as a definition list, but pages written with .IP or
+// .RS (git, systemd, many others) as <p>-then-indented-div. Handle both.
+export function parseOptions(html) {
+  // A page may name an option with a placeholder: git's "-<number>". The
+  // placeholder is part of the name, and what it stands for is what the
+  // page says it stands for.
+  const OPTION_NAME = /(?:^|[\s,])(--?(?:[A-Za-z0-9][\w-]*|<[A-Za-z][A-Za-z0-9_-]*>)|\+[A-Za-z0-9])/g;
+  const options = [];
+  const push = (nameHtml, descHtml) => {
+    const label = text(nameHtml).replace(/\s+/g, " ").trim();
+    if (!/^[-+]/.test(label) || label.length > 160) return;
+    const names = [...label.matchAll(OPTION_NAME)].map((m) => m[1]);
+    if (names.length === 0) return;
+    options.push({
+      names: [...new Set(names)],
+      usage: label,
+      desc: text(descHtml).replace(/\s+/g, " ").trim(),
+    });
+  };
+
+  // mdoc emits class="Bl-tag" or class="Bl-tag Bl-compact"; match every dt/dd
+  // pair and let push() reject the ones that are not options.
+  for (const pair of definitionEntries(html)) {
+    push(pair[0], pair[1]);
+  }
+  for (const pair of html.matchAll(/<p class="Pp">((?:(?!<\/p>)[\s\S])*?)<\/p>\s*<div class="Bd-indent">/g)) {
+    push(pair[1], blockBody(html, pair.index + pair[0].length, "div"));
+  }
+  // The name-then-blank-dt form (sed, timeout, watch): the option name is
+  // in the paragraph above, and the description in the dd that follows an
+  // empty dt.
+  for (const pair of html.matchAll(/<p class="Pp HP">((?:(?!<\/p>)[\s\S])*?)<\/p>[\s\S]*?<dt><\/dt>\s*<dd[^>]*>/g)) {
+    push(pair[1], blockBody(html, pair.index + pair[0].length, "dd"));
+  }
+
+  // man(7) pages (docker-style tooling) print each flag as its own paragraph.
+  options.push(...flagParagraphOptions(html, new Set(options.flatMap((o) => o.names))));
+  // A page may document a thing in several forms and list them.
+  options.push(...alternativeFlags(html, new Set(options.flatMap((o) => o.names))));
+  // A page may say that one flag is another's name.
+  options.push(...synonymFlags(html, new Set(options.flatMap((o) => o.names))));
+  return options;
+}
+
+function paragraphAt(html, phrase) {
+  return html.split(/<\/?(?:p|div|dd|dt|h[1-6])\b[^>]*>/g)
+    .map((part) => text(part)).find((p) => p.includes(phrase));
 }
