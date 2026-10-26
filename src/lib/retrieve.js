@@ -1,6 +1,5 @@
 // Candidate-restricted retrieval: cosine over only the current one-liner's pages.
 export async function retrieve(env, envIds, tools, question, k = 6) {
-  if (!env.AI) return []; // local dev has no AI binding; chat runs without context
   // A caller's k is a request, not a promise: a page holds a handful of
   // chunks and no answer needs more than this.
   const limit = Number.isInteger(k) && k > 0 ? Math.min(k, 12) : 6;
@@ -16,9 +15,7 @@ export async function retrieve(env, envIds, tools, question, k = 6) {
           if (!obj) return [];
           const page = await obj.json();
           return (page.chunks ?? [])
-            // Older corpora may carry chunks without embeddings; those cannot
-            // be scored and must not trigger a billed question embedding.
-            .filter((chunk) => chunk.embedding)
+            .filter((chunk) => chunk.text)
             .map((chunk) => ({ tool, env: envId, text: chunk.text, embedding: chunk.embedding }));
         } catch (error) {
           console.error(`corpus page ${envId}/${tool}.json could not be read for retrieval:`, error);
@@ -27,7 +24,22 @@ export async function retrieve(env, envIds, tools, question, k = 6) {
       }),
     ),
   );
-  const candidates = pages.flat();
+  const chunks = pages.flat();
+  if (!chunks.length) return [];
+
+  // Local dev has no AI binding. Score text chunks by word overlap instead of
+  // giving up: the local corpus can still ground a question, and the Promptfoo
+  // fixture uses this path to put an injected excerpt in front of the model.
+  if (!env.AI) {
+    const asked = words(question);
+    const scored = chunks.map(({ embedding, ...chunk }) => ({ ...chunk, score: overlap(asked, chunk.text) }));
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit);
+  }
+
+  // A chunk without an embedding cannot be scored and must not trigger a
+  // billed question embedding when there is nothing to rank.
+  const candidates = chunks.filter((chunk) => chunk.embedding);
   if (!candidates.length) return [];
 
   let q;
@@ -47,6 +59,17 @@ export async function retrieve(env, envIds, tools, question, k = 6) {
     .map(({ embedding, ...chunk }) => ({ ...chunk, score: cosine(q, embedding) }));
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit);
+}
+
+function words(text) {
+  return new Set(String(text ?? "").toLowerCase().match(/[a-z0-9]+/g) ?? []);
+}
+
+function overlap(asked, text) {
+  const have = words(text);
+  let n = 0;
+  for (const word of asked) if (have.has(word)) n += 1;
+  return n;
 }
 
 function cosine(a, b) {

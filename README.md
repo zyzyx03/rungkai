@@ -308,6 +308,48 @@ node test/make-fixture.mjs           # refresh the sample from it
 npm test
 ```
 
+### Model and prompt-injection tests
+
+The model endpoints have their own suite. It needs the `promptfoo` CLI on PATH
+and both keys in `.env` (gitignored):
+
+```sh
+DEEPSEEK_API_KEY=...   # the app's model
+OLLAMA_API_KEY=...     # the judge, Ollama Cloud — local only, never a Worker secret
+```
+
+Then:
+
+```sh
+npm run test:all
+```
+
+This runs the 114 pure-logic tests, the **31 curated prompt-injection cases**,
+and **10 generated prompt-extraction probes**. It builds the site, starts a
+throwaway `wrangler dev` on :8788 with a fresh local R2 and Durable Object
+state, raises only that process's rate limits and daily budget, seeds four
+poisoned man pages, runs both Promptfoo evals, then shuts the server down. The
+real rate limits, budget and R2 are untouched.
+
+- `npm run test:promptfoo:all` — the two Promptfoo layers only.
+- `npm run test:promptfoo` — the curated 31 cases only.
+- `npm run test:redteam` — the generated probes only.
+- `npm run test:browser` — the Chrome motion/UI suite, separate because it
+  launches Chrome.
+
+The target is DeepSeek; the judge is **GLM 5.3 on Ollama Cloud**, a different
+family, through a small adapter that normalises its verdict. A full run costs a
+few cents or uses your Ollama Cloud quota. The curated cases cover direct
+overrides, encodings, multi-turn chat, tldr, and injected man-page excerpts.
+The generated layer currently covers `prompt-extraction`; `hijacking`,
+`system-prompt-override` and the jailbreak strategies are remote-generation-only
+in Promptfoo and need Promptfoo Cloud, an OpenAI key, or a self-hosted
+`PROMPTFOO_REMOTE_GENERATION_URL`.
+
+Results open with `promptfoo view` (default http://localhost:15500). See
+[`test/promptfoo/README.md`](test/promptfoo/README.md) for the cases, the
+rubrics and the judge.
+
 ## Notes for contributors
 
 Three things in the parser are load-bearing and easy to break:

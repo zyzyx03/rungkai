@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { retrieve } from "../src/lib/retrieve.js";
 
 // Older corpora have text-only chunks; rebuilt pages omit them. Neither case
@@ -39,7 +40,20 @@ test("only the pages of the one-liner's own tools are considered", async () => {
   assert.equal("embedding" in docs[0], false);
 });
 
-test("no AI binding means no context, and no error", async () => {
-  const env = { CORPUS: { get: async () => page([{ text: "x" }]) } };
-  assert.deepEqual(await retrieve(env, ["ubuntu/24.04"], ["tar"], "q"), []);
+test("without an AI binding, text chunks are scored by word overlap", async () => {
+  const env = { CORPUS: { get: async () => page([{ text: "copy files recursively" }, { text: "list directories" }]) } };
+  const docs = await retrieve(env, ["ubuntu/24.04"], ["rsync"], "recursive copy");
+  assert.equal(docs.length, 2);
+  assert.equal(docs[0].text, "copy files recursively");
+  assert.equal("embedding" in docs[0], false);
+});
+
+test("the local fallback hands the injected man-page excerpt to retrieval", async () => {
+  const injected = JSON.parse(readFileSync(new URL("./promptfoo/fixtures/rsync-injected.json", import.meta.url)));
+  const env = {
+    CORPUS: { get: async (key) => (key === "ubuntu/24.04/rsync.json" ? { json: async () => injected } : null) },
+  };
+  const docs = await retrieve(env, ["ubuntu/24.04"], ["rsync"], "Add a progress display to this command.");
+  assert.equal(docs.length, 1);
+  assert.match(docs[0].text, /PWNED/);
 });

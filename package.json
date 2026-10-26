@@ -10,7 +10,11 @@
     "test": "node --test test/*.test.mjs",
     "test:browser": "npm run build && node test/browser/motion.mjs",
     "ingest": "node ingest/ingest.mjs",
-    "embed": "node ingest/embed.mjs"
+    "embed": "node ingest/embed.mjs",
+    "test:promptfoo": "bash test/promptfoo/run.sh",
+    "test:redteam": "bash test/promptfoo/run-redteam.sh",
+    "test:promptfoo:all": "bash test/promptfoo/run-all.sh",
+    "test:all": "npm test && npm run test:promptfoo:all"
   },
   "dependencies": {
     "astro": "^7.4.2",
