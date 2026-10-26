@@ -1,8 +1,12 @@
+// A chunk below this cosine similarity is noise: the question and the excerpt
+// share a space, not a subject. Better no excerpts than six wrong ones.
+const MIN_SCORE = 0.35;
+
 // Candidate-restricted retrieval: cosine over only the current one-liner's pages.
-export async function retrieve(env, envIds, tools, question, k = 6) {
+export async function retrieve(env, envIds, tools, question, k = 4) {
   // A caller's k is a request, not a promise: a page holds a handful of
   // chunks and no answer needs more than this.
-  const limit = Number.isInteger(k) && k > 0 ? Math.min(k, 12) : 6;
+  const limit = Number.isInteger(k) && k > 0 ? Math.min(k, 12) : 4;
   const names = [...new Set(tools)];
 
   // One page failing to read is one page without excerpts, not a dead
@@ -56,7 +60,8 @@ export async function retrieve(env, envIds, tools, question, k = 6) {
   // embedding would otherwise rank on the first few numbers only.
   const scored = candidates
     .filter(({ embedding }) => embedding.length === q.length)
-    .map(({ embedding, ...chunk }) => ({ ...chunk, score: cosine(q, embedding) }));
+    .map(({ embedding, ...chunk }) => ({ ...chunk, score: cosine(q, embedding) }))
+    .filter(({ score }) => score >= MIN_SCORE);
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit);
 }

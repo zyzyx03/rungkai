@@ -57,3 +57,20 @@ test("the local fallback hands the injected man-page excerpt to retrieval", asyn
   assert.equal(docs.length, 1);
   assert.match(docs[0].text, /PWNED/);
 });
+
+test("a chunk that only shares the embedding space is dropped", async () => {
+  const env = {
+    AI: { run: async () => ({ data: [[1, 0]] }) },
+    CORPUS: { get: async () => page([{ text: "unrelated", embedding: [0.1, 0.99] }]) },
+  };
+  assert.deepEqual(await retrieve(env, ["ubuntu/24.04"], ["tar"], "q"), []);
+});
+
+test("at most four excerpts are handed to the model", async () => {
+  const chunks = Array.from({ length: 6 }, (_, i) => ({ text: `chunk ${i}`, embedding: [1, 0] }));
+  const env = {
+    AI: { run: async () => ({ data: [[1, 0]] }) },
+    CORPUS: { get: async () => page(chunks) },
+  };
+  assert.equal((await retrieve(env, ["ubuntu/24.04"], ["tar"], "q")).length, 4);
+});

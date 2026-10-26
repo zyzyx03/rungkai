@@ -3,6 +3,7 @@ import { MAN_PAGE_ICON, EXTERNAL_ICON } from "../lib/icons.js";
 import { nestPieces } from "../lib/nesting.js";
 import { SYNTAX_NOTES } from "../lib/syntax.js";
 import { completeLines } from "../lib/sse.js";
+import { dangerFloor, worseDanger } from "../lib/danger.js";
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -1026,9 +1027,13 @@ function stopTldr() {
 // taken off the text and shown as a label.
 const DANGER_LINE = /^\s*DANGER:\s*([a-z]+)\s*\n?/i;
 
-function showTldr(text) {
+function showTldr(text, cmd = state.cmd) {
   const match = DANGER_LINE.exec(text);
-  const danger = match && match[1].toLowerCase() !== "none" ? match[1].toLowerCase() : null;
+  const said = match && match[1].toLowerCase() !== "none" ? match[1].toLowerCase() : null;
+  // The floor may raise what the model said and may not lower it: a disk wipe
+  // the model called "none" still shows a warning.
+  const floor = dangerFloor(cmd);
+  const danger = worseDanger(floor, said);
   const body = match ? text.slice(match[0].length) : text;
   els.tldrText.textContent = body;
   if (danger) {
@@ -1084,7 +1089,7 @@ async function loadTldr(cmd) {
       if (!piece) return;
       if (!text) els.tldr.classList.remove("is-pending");
       text += piece;
-      showTldr(text);
+      showTldr(text, cmd);
     };
     for (;;) {
       const { done, value } = await reader.read();
@@ -1097,7 +1102,7 @@ async function loadTldr(cmd) {
     buffer += decoder.decode();
     if (buffer) consume(buffer);
     if (run !== tldrRun) return;
-    const { body, danger } = showTldr(text.trim());
+    const { body, danger } = showTldr(text.trim(), cmd);
     tldrText = danger ? `DANGER: ${danger}\n${body}` : body;
   } catch {
     // No model, no budget, or no network: the breakdown still stands.
