@@ -136,6 +136,10 @@ const exampleHref = (cmd, env) =>
           <button id="new-command" type="button" hidden class="link">new command</button>
         </div>
       </div>
+      <div id="slow-down" class="slow-down" role="status" aria-live="polite" hidden>
+        <span class="slow-down-dot" aria-hidden="true"></span>
+        <span>Slow down — try again in <span id="slow-down-count" aria-hidden="true">a moment</span><span class="sr-only">a moment</span>.</span>
+      </div>
       <script is:inline>
         // Run during parsing so the command toolbar does not paint its
         // landing defaults while the module and explanation are loading.

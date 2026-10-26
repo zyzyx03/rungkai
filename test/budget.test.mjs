@@ -24,10 +24,16 @@ test("refills over time but never above capacity", () => {
   assert.equal(r.bucket.micro, CAP - 5);
 });
 
-test("adjust clamps to [0, capacity]", () => {
+test("adjust caps refunds but carries an overspend as debt", () => {
   assert.equal(adjust({ micro: 10, at: 0 }, 50, 0, CAP).micro, 60);
-  assert.equal(adjust({ micro: 10, at: 0 }, -50, 0, CAP).micro, 0);
+  assert.equal(adjust({ micro: 10, at: 0 }, -50, 0, CAP).micro, -40);
   assert.equal(adjust({ micro: CAP, at: 0 }, 50, 0, CAP).micro, CAP);
+});
+
+test("a debt keeps the next request out until the refill repays it", () => {
+  const spent = adjust({ micro: 0, at: 0 }, 400 - 900, 0, CAP);
+  assert.equal(spent.micro, -500);
+  assert.equal(take(spent, 100, 0, CAP, RATE).ok, false);
 });
 
 test("take then adjust charges actual usage or refunds the estimate", () => {

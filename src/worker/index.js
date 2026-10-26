@@ -8,6 +8,7 @@ import { resolveEnv } from "../lib/envs.js";
 import { checkText, readBody, MAX_CMD, MAX_MESSAGES, MAX_MESSAGE } from "../lib/input.js";
 import { commandHash } from "../lib/cache.js";
 import { Budget } from "./budget.js";
+import { RateLimit } from "./ratelimit.js";
 import { settledCost } from "../lib/budget.js";
 
 const app = new Hono();
@@ -16,9 +17,51 @@ const app = new Hono();
 const IN_RATE = 0.15;
 const OUT_RATE = 0.6;
 
-export { Budget };
+// What an answer may spend on output. The budget reservation and the request's
+// max_tokens use the same number, so a long answer cannot outrun the bucket.
+const ANSWER_TOKENS = 600;
+const TLDR_TOKENS = 120;
+
+// Per-IP token buckets, checked in a Durable Object so the count is global
+// rather than per edge location.
+const CHAT_PER_MINUTE = 5;
+const EXPLAIN_PER_MINUTE = 120;
+const RATE_PERIOD_SECONDS = 60;
+
+export { Budget, RateLimit };
 
 const budgetStub = (env) => env.BUDGET.get(env.BUDGET.idFromName("global"));
+
+// A separate object per limiter and IP: the chat and explain windows never
+// share a counter.
+const rateStub = (env, scope, ip) => env.RATE_LIMIT.get(env.RATE_LIMIT.idFromName(`${scope}:${ip}`));
+
+async function withinLimit(env, scope, ip, limit, period) {
+  try {
+    const res = await rateStub(env, scope, ip).fetch("https://rate-limit/", {
+      method: "POST",
+      body: JSON.stringify({ limit, period }),
+    });
+    const data = await res.json();
+    return { allowed: data.allowed === true, retryAfter: Math.max(1, Number(data.retryAfter) || 1) };
+  } catch (error) {
+    // These endpoints spend money; if the limiter is unreachable, refuse.
+    console.error("the rate limiter failed", error);
+    return { allowed: false, retryAfter: 60 };
+  }
+}
+
+// The reader sees the sentence; a client that obeys headers sees the wait.
+function rateLimited(c, retryAfter) {
+  const seconds = Math.max(1, Math.ceil(retryAfter));
+  c.header("Retry-After", String(seconds));
+  return c.json({ error: "slow down", retryAfter: seconds }, 429);
+}
+
+// Cloudflare sets this header at the edge; a client cannot choose it while
+// the Worker is only reachable through Cloudflare. A proxy in front would
+// have to validate it too.
+const clientIp = (c) => c.req.header("cf-connecting-ip") ?? "anon";
 
 async function charge(env, op, micro) {
   const res = await budgetStub(env).fetch("https://budget/", {
@@ -92,8 +135,9 @@ app.post("/api/explain", async (c) => {
 
   // A cached answer is free and stays free. The cache miss is a parse and a
   // handful of R2 reads, so it is the part a client has to pay for in rate.
-  const ip = c.req.header("cf-connecting-ip") ?? "anon";
-  if (!(await c.env.EXPLAIN_LIMIT.limit({ key: ip })).success) return c.json({ error: "slow down" }, 429);
+  const ip = clientIp(c);
+  const explainLimit = await withinLimit(c.env, "explain", ip, EXPLAIN_PER_MINUTE, RATE_PERIOD_SECONDS);
+  if (!explainLimit.allowed) return rateLimited(c, explainLimit.retryAfter);
 
   const parsed = await parseOneLiner(cmd);
   // Nothing was explained because nothing could be read. Say so, and do not
@@ -113,8 +157,9 @@ app.post("/api/explain", async (c) => {
 });
 
 app.post("/api/chat", async (c) => {
-  const ip = c.req.header("cf-connecting-ip") ?? "anon";
-  if (!(await c.env.CHAT_LIMIT.limit({ key: ip })).success) return c.json({ error: "slow down" }, 429);
+  const ip = clientIp(c);
+  const chatLimit = await withinLimit(c.env, "chat", ip, CHAT_PER_MINUTE, RATE_PERIOD_SECONDS);
+  if (!chatLimit.allowed) return rateLimited(c, chatLimit.retryAfter);
   if (!c.env.DEEPSEEK_API_KEY) return c.json({ error: "chat is not configured" }, 503);
 
   const { body, env: envId, error } = await readBody(c.req.raw);
@@ -151,7 +196,7 @@ app.post("/api/chat", async (c) => {
     context ? `Documentation excerpts:\n\n${context}` : "No documentation excerpts were retrieved.",
   ].join("\n");
 
-  const est = ((system + messages.map((m) => m.content).join("")).length / 4) * IN_RATE + 600 * OUT_RATE;
+  const est = ((system + messages.map((m) => m.content).join("")).length / 4) * IN_RATE + ANSWER_TOKENS * OUT_RATE;
   const taken = await charge(c.env, "take", est);
   if (!taken.ok) return c.json({ error: "budget exhausted — the explainer still works" }, 429);
 
@@ -165,6 +210,7 @@ app.post("/api/chat", async (c) => {
       },
       body: JSON.stringify({
         model: c.env.DEEPSEEK_MODEL,
+        max_tokens: ANSWER_TOKENS,
         stream: true,
         stream_options: { include_usage: true },
         temperature: 0.2,
@@ -225,8 +271,9 @@ app.post("/api/tldr", async (c) => {
     return sseText(summary);
   }
 
-  const ip = c.req.header("cf-connecting-ip") ?? "anon";
-  if (!(await c.env.CHAT_LIMIT.limit({ key: ip })).success) return c.json({ error: "slow down" }, 429);
+  const ip = clientIp(c);
+  const chatLimit = await withinLimit(c.env, "chat", ip, CHAT_PER_MINUTE, RATE_PERIOD_SECONDS);
+  if (!chatLimit.allowed) return rateLimited(c, chatLimit.retryAfter);
 
   const parsed = await parseOneLiner(cmd);
   if (!parsed.ok) return c.json({ error: "bad command: the shell grammar cannot parse it" }, 400);
@@ -273,7 +320,7 @@ app.post("/api/tldr", async (c) => {
     context ? `The tools it runs, and the flags it uses:\n${context}` : "No documentation was found for the tools it runs.",
   ].join("\n");
 
-  const est = ((system + cmd).length / 4 + 200) * IN_RATE + 120 * OUT_RATE;
+  const est = ((system + cmd).length / 4 + 200) * IN_RATE + TLDR_TOKENS * OUT_RATE;
   const taken = await charge(c.env, "take", est);
   if (!taken.ok) return c.json({ error: "budget exhausted" }, 429);
 
@@ -290,6 +337,7 @@ app.post("/api/tldr", async (c) => {
         // The sentence is a summarisation, not a puzzle: thinking only makes it
         // slower and costs more, and most of the bill is thinking tokens.
         thinking: { type: "disabled" },
+        max_tokens: TLDR_TOKENS,
         temperature: 0.1,
         stream: true,
         stream_options: { include_usage: true },
@@ -412,8 +460,9 @@ async function ground(env, envId, command) {
 }
 
 async function recommend(c, { cmd, request, envId }) {
-  const ip = c.req.header("cf-connecting-ip") ?? "anon";
-  if (!(await c.env.CHAT_LIMIT.limit({ key: ip })).success) return c.json({ error: "slow down" }, 429);
+  const ip = clientIp(c);
+  const chatLimit = await withinLimit(c.env, "chat", ip, CHAT_PER_MINUTE, RATE_PERIOD_SECONDS);
+  if (!chatLimit.allowed) return rateLimited(c, chatLimit.retryAfter);
   if (!c.env.DEEPSEEK_API_KEY) return c.json({ error: "the recommender is not configured" }, 503);
 
   const parsed = cmd ? await parseOneLiner(cmd) : { ok: true, commands: [] };
@@ -421,7 +470,7 @@ async function recommend(c, { cmd, request, envId }) {
   const docs = await retrieve(c.env, resolveEnv(envId), parsed.commands.map((x) => x.name), request);
   const context = docs.map((d) => `[${d.tool}(1) from ${d.env}]\n${d.text}`).join("\n\n");
 
-  const est = ((context + cmd + request).length / 4 + 200) * IN_RATE + 600 * OUT_RATE;
+  const est = ((context + cmd + request).length / 4 + 200) * IN_RATE + ANSWER_TOKENS * OUT_RATE;
   const taken = await charge(c.env, "take", est);
   if (!taken.ok) return c.json({ error: "budget exhausted" }, 429);
 
@@ -440,6 +489,7 @@ async function recommend(c, { cmd, request, envId }) {
       },
       body: JSON.stringify({
         model: c.env.DEEPSEEK_MODEL,
+        max_tokens: ANSWER_TOKENS,
         temperature: 0.1,
         response_format: { type: "json_object" },
         messages: [

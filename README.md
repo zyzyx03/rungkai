@@ -55,6 +55,7 @@ plain-English summary, the recommender and the chat.
 | `src/lib/retrieve.js` | Cosine over only the pages of the tools the command actually names. |
 | `src/worker/index.js` | The Hono Worker: `/api/explain`, `/api/tldr`, `/api/suggest` (alias `/api/change`), `/api/chat`. |
 | `src/worker/budget.js` | A Durable Object holding the $1/day token bucket. |
+| `src/worker/ratelimit.js` | A Durable Object per IP and limiter holding the token bucket. |
 | `src/client/app.js` | Synopsis tokens, connector routing, hover isolation, permalinks. |
 | `src/pages/index.astro` | The page itself. |
 | `ingest/` | Builds a corpus from man pages and moves it in and out of R2. |
@@ -63,7 +64,8 @@ plain-English summary, the recommender and the chat.
 
 The stack is Astro (static output) served by one Hono Worker on Cloudflare
 Workers, styled with UnoCSS. Man pages live in R2, one JSON document per tool.
-The model is DeepSeek, behind a budget the Durable Object enforces.
+The model is DeepSeek, behind a budget and per-IP token buckets the Durable Objects
+enforce.
 
 Nothing is stored: no accounts, no history, no saved commands. A permalink
 carries the command and the environment in the URL.

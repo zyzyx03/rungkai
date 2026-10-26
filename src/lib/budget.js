@@ -6,8 +6,11 @@ export function take(bucket, cost, now, capacity, perSecond) {
   return { ok: true, bucket: { micro: micro - cost, at: now } };
 }
 
+// A real cost above the reservation leaves a negative bucket. Keep the debt:
+// the refill pays it back before a new request is allowed, so one long answer
+// cannot outrun the daily budget.
 export function adjust(bucket, delta, now, capacity) {
-  return { micro: Math.min(capacity, Math.max(0, bucket.micro + delta)), at: now };
+  return { micro: Math.min(capacity, bucket.micro + delta), at: now };
 }
 
 // What a streamed completion costs once it has ended. Usage is the bill;

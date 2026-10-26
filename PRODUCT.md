@@ -6,7 +6,7 @@
 web
 
 ## Stack
-Astro static output served by one Hono Worker on Cloudflare Workers, styled with UnoCSS. `tree-sitter-bash` parses one-liners; man pages live in R2; DeepSeek (operator key) recommends and adapts commands; Workers AI `bge-small` embeds; a SQLite Durable Object holds the daily budget.
+Astro static output served by one Hono Worker on Cloudflare Workers, styled with UnoCSS. `tree-sitter-bash` parses one-liners; man pages live in R2; DeepSeek (operator key) recommends and adapts commands; Workers AI `bge-small` embeds; SQLite Durable Objects hold the daily budget and the per-IP rate windows.
 
 ## Users
 Ops engineers and sysadmins reading a command line they did not write — pasted from a runbook, a ticket, or a colleague — who need to know what each tool and flag does before running it, sometimes adapted to their own OS.
@@ -26,7 +26,7 @@ A browser, often during an incident or while reading a runbook. Commands are pas
 - Shell syntax anchors to `bash(1)`.
 - The deterministic explainer is cached and works with zero model budget.
 - A plain-language recommender (`/api/suggest`) returns one command, fresh or adapted from the current one, with a rationale and its assumptions. It is a single suggestion, not a conversation. `/api/change` remains a compatibility alias requiring a string `cmd`; `/api/chat` remains available.
-- Operator-funded DeepSeek key behind a $1/day budget in a Durable Object; 5 recommender or chat requests/minute per IP.
+- Operator-funded DeepSeek key behind a $1/day budget in a Durable Object; per-IP token buckets in another Durable Object limit chat to 5 requests/minute and uncached explanations to 120/minute.
 - No accounts, no server-side history, no stored commands. Permalinks carry command and environment in the URL.
 - Tools without a page are shown as gaps, never filled with model prose.
 

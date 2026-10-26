@@ -55,6 +55,16 @@ export function checkBody(request, max = MAX_BODY) {
 export async function readBody(request) {
   const tooBig = checkBody(request);
   if (tooBig) return { error: `bad request: ${tooBig}` };
+  // A cross-origin simple request may carry text/plain; requiring JSON makes
+  // the browser preflight it, and this API has no CORS policy to pass.
+  const type = request.headers?.get("content-type") ?? "";
+  if (!/^application\/json\s*(?:;|$)/i.test(type)) {
+    return { error: "bad request: the body must be JSON" };
+  }
+  // The browser labels a cross-site request for us; refuse it outright.
+  if (request.headers?.get("sec-fetch-site") === "cross-site") {
+    return { error: "bad request: cross-site requests are not accepted" };
+  }
   let raw;
   try {
     raw = await readText(request, MAX_BODY);

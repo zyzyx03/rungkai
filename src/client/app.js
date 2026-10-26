@@ -25,6 +25,8 @@ const els = {
   empty: $("#empty"),
   statusDot: $("#status-dot"),
   statusText: $("#status-text"),
+  slowDown: $("#slow-down"),
+  slowDownCount: $("#slow-down-count"),
   undo: $("#undo"),
   newCommand: $("#new-command"),
   tldr: $("#tldr"),
@@ -81,6 +83,27 @@ function safeHref(url) {
 
 const state = { cmd: "", env: "all", mode: "explain", undo: [], busy: false, suggested: "" };
 
+// A rate-limited reader gets one visible line with the seconds left. The
+// explanation already on screen is still valid, so this is not an error panel.
+let slowDownTimer;
+function showSlowDown(seconds) {
+  const wait = Math.max(1, Math.ceil(Number(seconds) || 12));
+  let left = wait;
+  const paint = () => { els.slowDownCount.textContent = `${left}s`; };
+  els.slowDown.hidden = false;
+  paint();
+  clearInterval(slowDownTimer);
+  slowDownTimer = setInterval(() => {
+    left -= 1;
+    if (left <= 0) {
+      clearInterval(slowDownTimer);
+      els.slowDown.hidden = true;
+      return;
+    }
+    paint();
+  }, 1000);
+}
+
 // The geometry the connectors were last drawn for; a redraw onto the same
 // geometry is skipped so a draw-in animation is not cut short.
 let connectorKey = "";
@@ -128,7 +151,15 @@ async function explain(cmd, env, historyMode = "push") {
       body: JSON.stringify({ cmd, env }),
       signal: request.signal,
     });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `explain failed (${res.status})`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      // Keep the view on screen: the wait is not a failure of this command.
+      if (res.status === 429 && data.retryAfter) {
+        showSlowDown(data.retryAfter);
+        return;
+      }
+      throw new Error(data.error ?? `explain failed (${res.status})`);
+    }
     const result = await res.json();
     // A 200 with a body that is not an explanation is still a failure; the
     // render path would throw halfway through and leave a broken page.
@@ -1023,7 +1054,16 @@ async function loadTldr(cmd) {
       body: JSON.stringify({ cmd, env: state.env }),
       signal: request.signal,
     });
-    if (!res.ok) throw new Error("no summary");
+    if (!res.ok) {
+      if (res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        if (!data.retryAfter) throw new Error("no summary");
+        showSlowDown(data.retryAfter);
+        els.tldr.hidden = true;
+        return;
+      }
+      throw new Error("no summary");
+    }
     // The answer arrives as it is written, so the reader watches it land. A
     // network chunk can end mid-line, so only complete lines are read and the
     // rest waits for the next chunk.
@@ -1108,6 +1148,12 @@ async function suggest(request) {
       body: JSON.stringify({ request, cmd: state.cmd, env: state.env }),
     });
     const data = await res.json();
+    if (res.status === 429 && data.retryAfter) {
+      showSlowDown(data.retryAfter);
+      els.suggestion.hidden = true;
+      els.suggestion.classList.remove("is-pending");
+      return;
+    }
     if (!res.ok) {
       els.suggestion.classList.remove("is-pending");
       els.suggestionCommand.textContent = "";

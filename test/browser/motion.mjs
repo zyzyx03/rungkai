@@ -14,6 +14,7 @@ import { resolveCommands } from "../../src/lib/wrap.js";
 let responseDelay = 0;
 let scriptDelay = 0;
 let failResponse = false;
+let rateLimited = false;
 let legacyManual = false;
 const server = createServer(async (req, res) => {
   try {
@@ -22,6 +23,11 @@ const server = createServer(async (req, res) => {
       for await (const chunk of req) body += chunk;
       const { cmd, env } = JSON.parse(body);
       await delay(responseDelay);
+      if (rateLimited) {
+        res.writeHead(429, { "content-type": "application/json", "Retry-After": "5" });
+        res.end(JSON.stringify({ error: "slow down", retryAfter: 5 }));
+        return;
+      }
       res.setHeader("content-type", "application/json");
       if (failResponse) {
         res.writeHead(500).end(JSON.stringify({ error: "Test failure" }));
@@ -293,13 +299,21 @@ try {
   await evaluate("document.querySelector('#home-link').click()");
   await waitFor("!document.querySelector('#examples').hidden && document.querySelector('#results').hidden");
   assert.equal(await evaluate("document.querySelector('#cmd').value"), "", "the wordmark is a home link");
+  // A rate-limited reader sees the wait, not an error panel.
+  rateLimited = true;
+  await submit("ls -la /tmp");
+  await waitFor("!document.querySelector('#slow-down').hidden");
+  assert.match(await evaluate("document.querySelector('#slow-down').textContent"), /Slow down/);
+  assert.match(await evaluate("document.querySelector('#slow-down-count').textContent"), /^\d+s$/);
+  assert.equal(await evaluate("document.querySelector('#explain').disabled"), false, "the busy state clears");
+  rateLimited = false;
   failResponse = true;
   await submit("ls");
   await waitFor("!document.querySelector('#explain').disabled");
   assert.equal(await evaluate("document.querySelector('#cards').textContent"), "Test failure");
   assert.equal(await evaluate("document.querySelectorAll('.connectors > *').length"), 0, "errors clear both SVG layers");
   assert.deepEqual(errors, [], "no browser exceptions");
-  console.log("PASS: toolbar first-paint stability, source label/dot and Enter icon across slow refresh, command input restoration, shared-link entrance, continuous route draw, scroll/resize, repeated render, wrapping, mobile, cancellation, reduced motion, browser fallback, errors, keyboard focus, Back/Forward and wordmark home");
+  console.log("PASS: toolbar first-paint stability, source label/dot and Enter icon across slow refresh, command input restoration, shared-link entrance, continuous route draw, scroll/resize, repeated render, wrapping, mobile, cancellation, reduced motion, browser fallback, errors, keyboard focus, Back/Forward and wordmark home, slow-down notice");
 } finally {
   socket?.close();
   if (chrome && chrome.exitCode === null) {

@@ -839,3 +839,29 @@ input.neon-frame:focus-visible {
     animation: none;
   }
 }
+
+/* A rate-limited reader gets one quiet signal-coloured line, not an error
+   panel: the explanation already on screen is still valid. */
+.slow-down {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 6px;
+  background: rgba(247, 118, 142, 0.1);
+  color: #f7768e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+.slow-down[hidden] { display: none; }
+.slow-down-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}

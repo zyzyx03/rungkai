@@ -464,6 +464,10 @@ and every delay to zero; state changes still land, only the tween is removed.
   environment change replaces the current one. The browser's Back and Forward
   render the entry they land on, so Back from a command returns to the samples
   instead of leaving the site, and home always scrolls to the top.
+- **A rate-limited reader sees one signal-coloured line**, with a live countdown
+  ("Slow down — try again in Ns"), under the status strip. It is a wait, not an
+  error: the explanation already on screen stays. The 429 carries
+  `Retry-After`, and the tldr, suggest and explain panels share the same line.
 - Escape belongs to the page, not to the field: it has to work wherever the
   reader's focus happens to be. An open menu takes it first and only closes;
   otherwise it empties the field and goes home.

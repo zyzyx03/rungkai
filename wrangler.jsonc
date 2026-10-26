@@ -11,12 +11,14 @@
   "ai": { "binding": "AI" },
   "r2_buckets": [{ "binding": "CORPUS", "bucket_name": "rungkai-corpus" }],
   "durable_objects": {
-    "bindings": [{ "name": "BUDGET", "class_name": "Budget" }]
+    "bindings": [
+      { "name": "BUDGET", "class_name": "Budget" },
+      { "name": "RATE_LIMIT", "class_name": "RateLimit" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Budget"] }],
-  "ratelimits": [
-    { "name": "CHAT_LIMIT", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } },
-    { "name": "EXPLAIN_LIMIT", "namespace_id": "1002", "simple": { "limit": 120, "period": 60 } }
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["Budget"] },
+    { "tag": "v2", "new_sqlite_classes": ["RateLimit"] }
   ],
   "rules": [
     { "type": "CompiledWasm", "globs": ["**/*.wasm"], "fallthrough": false }

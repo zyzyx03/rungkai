@@ -92,3 +92,18 @@ test("a body that lies about its length is still stopped at the limit", async ()
     assert.match(error, /over \d+ bytes/);
   }
 });
+
+test("a body must be declared JSON, and a cross-site request is refused", async () => {
+  const request = (headers) => new Request("https://x.test/api/explain", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...headers },
+    body: JSON.stringify({ cmd: "ls" }),
+  });
+  assert.equal((await readBody(request({}))).error, undefined);
+  assert.equal((await readBody(request({ "content-type": "application/json; charset=utf-8" }))).error, undefined);
+  // A form or no-cors fetch can only send a simple content type; JSON forces
+  // a preflight, which this API has no CORS policy to pass.
+  assert.match((await readBody(request({ "content-type": "text/plain" }))).error, /must be JSON/);
+  // Fetch Metadata is the second lock.
+  assert.match((await readBody(request({ "sec-fetch-site": "cross-site" }))).error, /cross-site/);
+});
