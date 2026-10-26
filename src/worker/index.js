@@ -5,6 +5,7 @@ import { matchArg, matchValue, pagePath } from "../lib/pages.js";
 import { resolveCommands } from "../lib/wrap.js";
 import { retrieve } from "../lib/retrieve.js";
 import { candidateTools } from "../lib/candidates.js";
+import { chatAuthorized } from "../lib/chat-auth.js";
 import { resolveEnv } from "../lib/envs.js";
 import { checkText, readBody, MAX_CMD, MAX_MESSAGES, MAX_MESSAGE } from "../lib/input.js";
 import { commandHash } from "../lib/cache.js";
@@ -162,6 +163,12 @@ app.post("/api/explain", async (c) => {
 });
 
 app.post("/api/chat", async (c) => {
+  const auth = await chatAuthorized(c.req.raw, c.env.CHAT_TOKEN);
+  if (auth !== "ok") {
+    if (auth === "missing") return c.json({ error: "chat is not configured" }, 503);
+    c.header("WWW-Authenticate", "Bearer");
+    return c.json({ error: "unauthorized" }, 401);
+  }
   const ip = clientIp(c);
   const chatLimit = await withinLimit(c.env, "chat", ip, limitFrom(c, "CHAT_PER_MINUTE", CHAT_PER_MINUTE), RATE_PERIOD_SECONDS);
   if (!chatLimit.allowed) return rateLimited(c, chatLimit.retryAfter);

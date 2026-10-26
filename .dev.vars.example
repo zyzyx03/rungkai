@@ -1,2 +1,5 @@
 # copy to .dev.vars for local chat; /api/explain works without it
 DEEPSEEK_API_KEY=sk-your-deepseek-key
+
+# /api/chat is internal; any value works for a local dev server.
+CHAT_TOKEN=local-chat-token

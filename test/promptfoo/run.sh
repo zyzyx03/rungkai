@@ -5,6 +5,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
+TOKEN="$(node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("hex"))')"
+export RUNGKAI_CHAT_TOKEN="$TOKEN"
+
 PORT=8788
 PERSIST="$(mktemp -d)"
 SERVER_PID=""
@@ -24,6 +27,7 @@ timeout 600 npx wrangler dev \
   --persist-to "$PERSIST" \
   --var CHAT_PER_MINUTE:1000 \
   --var EXPLAIN_PER_MINUTE:1000 \
+  --var "CHAT_TOKEN:$TOKEN" \
   --var DAILY_BUDGET_MICRO:100000000 \
   > /tmp/rungkai-promptfoo.log 2>&1 &
 SERVER_PID=$!

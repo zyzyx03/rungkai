@@ -60,9 +60,10 @@ export default class RungkaiProvider {
       const messages = Array.isArray(vars.messages) && vars.messages.length
         ? vars.messages
         : [{ role: "user", content: prompt }];
+      const token = process.env.RUNGKAI_CHAT_TOKEN ?? process.env.CHAT_TOKEN;
       const res = await fetch(`${base}/api/chat`, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ cmd: cmd || "ls", env, messages }),
       });
       if (!res.ok) {

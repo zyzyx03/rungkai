@@ -54,13 +54,18 @@ plain-English summary, the recommender and the chat.
 | `src/lib/wrap.js` | Finds the command a command runs in turn: `sudo ss`, `find -exec rm`. |
 | `src/lib/retrieve.js` | Cosine over only the pages of the tools the command actually names. |
 | `src/worker/index.js` | The Hono Worker: `/api/explain`, `/api/tldr`, `/api/suggest` (alias `/api/change`), `/api/chat`. |
-| `src/worker/budget.js` | A Durable Object holding the $1/day token bucket. |
+| `src/worker/budget.js` | A Durable Object holding the daily model budget. |
 | `src/worker/ratelimit.js` | A Durable Object per IP and limiter holding the token bucket. |
 | `src/client/app.js` | Synopsis tokens, connector routing, hover isolation, permalinks. |
 | `src/pages/index.astro` | The page itself. |
 | `ingest/` | Builds a corpus from man pages and moves it in and out of R2. |
 
 `POST /api/change` is a compatibility alias for `/api/suggest` that still requires a string `cmd`; `/api/suggest` can omit it for a new command.
+
+`/api/chat` is internal to the Promptfoo harness and requires
+`Authorization: Bearer $CHAT_TOKEN`. Set the secret with
+`npx wrangler secret put CHAT_TOKEN`; the harness generates a throwaway token
+for its local server, so nothing is stored in the repository.
 
 The stack is Astro (static output) served by one Hono Worker on Cloudflare
 Workers, styled with UnoCSS. Man pages live in R2, one JSON document per tool.
