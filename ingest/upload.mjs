@@ -57,12 +57,14 @@ async function worker() {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         if (useDevApi) await putDev(key, readFileSync(join(dir, file)));
-        else execFileSync(wrangler, args, { stdio: "ignore" });
+        else execFileSync(wrangler, args, { stdio: ["ignore", "ignore", "pipe"], encoding: "utf8" });
         break;
       } catch (error) {
         if (attempt) {
           failed += 1;
-          console.warn(`failed ${file}: ${error.message.split("\n")[0]}`);
+          // wrangler says why on stderr; that is the only place the reason is.
+          const why = String(error.stderr ?? error.message).trim().split("\n").slice(-3).join(" | ");
+          console.warn(`failed ${file}: ${why}`);
         }
       }
     }
@@ -75,5 +77,7 @@ await Promise.all(Array.from({ length: POOL }, worker));
 console.log(`uploaded ${done - failed}/${files.length} to ${BUCKET}/${envId}${local ? " (local)" : ""}`);
 console.log("bump CORPUS_VERSION in wrangler.jsonc so the explainer cache turns over");
 if (local) console.log("clear .wrangler/state/v3/cache and restart wrangler dev so the cache turns over too");
+// A partial upload is a failure: the corpus on the edge is now missing pages.
+if (failed) process.exitCode = 1;
 
 

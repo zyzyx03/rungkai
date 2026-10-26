@@ -455,10 +455,15 @@ and every delay to zero; state changes still land, only the tween is removed.
   blue wash, scrollbars are ink at 20%.
 - Popups expose `aria-haspopup`, `aria-expanded`, `aria-controls`, `aria-selected`;
   arrow keys move, Escape and outside click close.
-- There are three ways home, and all three land in the same place: the clear
-  button, **Escape** anywhere on the page, and the "new command" link. Home
-  means no command, the default corpus, the samples back and nothing to undo.
-  `Ctrl`/`Cmd`+`K` focuses the field first.
+- There are four ways home, and all four land in the same place: the clear
+  button, **Escape** anywhere on the page, the "new command" link, and the
+  wordmark (a real `href="/"` link, so a modified click opens the site in a new
+  tab). Home means no command, the default corpus, the samples back and nothing
+  to undo. `Ctrl`/`Cmd`+`K` focuses the field first.
+- **The address bar is the history.** A new command is a new history entry; an
+  environment change replaces the current one. The browser's Back and Forward
+  render the entry they land on, so Back from a command returns to the samples
+  instead of leaving the site, and home always scrolls to the top.
 - Escape belongs to the page, not to the field: it has to work wherever the
   reader's focus happens to be. An open menu takes it first and only closes;
   otherwise it empties the field and goes home.

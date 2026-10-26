@@ -104,7 +104,7 @@ export const SAMPLE_GROUPS = [
     commands: [
       { label: "Install a package", cmd: "apt-get install -y nginx" },
       { label: "Search the package index", cmd: "apt-cache search nginx" },
-      { label: "List installed packages", cmd: "dpkg -l | grep nginx" },
+      { label: "Show which version is available", cmd: "apt-cache policy nginx" },
     ],
   },
   {

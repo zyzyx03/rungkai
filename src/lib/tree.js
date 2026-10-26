@@ -111,5 +111,8 @@ export function readTree(tree) {
   };
 
   walk(tree.rootNode);
-  return { ok: true, commands, syntax };
+  // An ERROR node is the grammar saying it could not read the line. The
+  // commands around it may still be there, but the line as typed is not one
+  // the explainer can vouch for.
+  return { ok: !tree.rootNode.hasError, commands, syntax };
 }

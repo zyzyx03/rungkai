@@ -32,7 +32,7 @@ export function explain(cmd, parsed, pages, envId) {
     const anchor = builtin
       ? { key: `builtin:${command.name}`, title: "bash(1) § Builtins", desc: builtin, url: null, env: "bash(1)" }
       : page
-        ? { key: `cmd:${label}`, title: `${label}(${page.section ?? 1})`, desc: page.synopsis, description: page.description, options: page.options, url: cite.url, env: cite.env, section: cite.section }
+        ? { key: `cmd:${label}`, title: `${label}(${page.section ?? 1})`, desc: page.synopsis, url: cite.url, env: cite.env, section: cite.section }
         : { key: `gap:${label}`, title: label, desc: null, url: null, env: null };
     pieces.push({
       kind: builtin ? "builtin" : "tool",
@@ -132,15 +132,19 @@ export function explain(cmd, parsed, pages, envId) {
         // The page may give the option in more than one form, and the command
         // says which one it used.
         const form = formUsed(page, match.names, optionArgs.slice(at + 1));
+        // The page's usage line is the title, with the word this command
+        // supplied in the value slot: "-type f", not the page's "-type c".
+        const equals = arg.text.indexOf("=");
+        const supplied = equals >= 0 ? arg.text.slice(equals + 1) : optionArgs[at + 1]?.text;
+        const named = form ? { title: form.usage, value: match.value?.name ?? null } : optionTitle(match, supplied);
         const option = {
           key,
-          // The page's own usage line: "-mtime n", not "-mtime".
-          title: form?.usage ?? match.usage ?? match.names.join(", "),
+          title: named.title,
           desc: form?.desc ?? match.desc,
           url: cite.url,
           env: cite.env,
           section: cite.section,
-          value: match.value?.name ?? null,
+          value: named.value,
         };
         pending = match.value ? { anchor: option } : null;
         if (seen.has(key)) continue;
@@ -247,6 +251,19 @@ export function explain(cmd, parsed, pages, envId) {
 
   const gaps = pieces.filter((p) => p.gap && p.anchor?.key.startsWith("gap:")).map((p) => p.tool);
   return { env: envId, segments, sources, gaps };
+}
+
+// The page's usage line is the card's title. When its last word is the
+// option's value placeholder and the command supplied a different word, the
+// reader's word takes the slot: find's "-type c" on "-type f" otherwise reads
+// as if the command asked for a character device.
+function optionTitle(match, supplied) {
+  const title = match.usage ?? match.names.join(", ");
+  const placeholder = match.value?.name ?? null;
+  if (!match.usage || !placeholder || !supplied || supplied === placeholder) return { title, value: placeholder };
+  const ending = title.split(/\s+/).at(-1);
+  if (ending !== placeholder) return { title, value: placeholder };
+  return { title: `${title.slice(0, title.length - ending.length)}${supplied}`, value: null };
 }
 
 function queryMode(args) {

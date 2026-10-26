@@ -28,6 +28,15 @@ async function run(cmd, pages) {
 
 const undocumented = (result) => result.segments.filter((s) => s.kind === "unknown").map((s) => s.text);
 
+test("a line the grammar cannot read is refused, not explained as nothing", () => {
+  for (const cmd of ["ls | ", "if; then", "&&&", "echo )"]) {
+    assert.equal(parse(cmd).ok, false, cmd);
+  }
+  // A comment and a bare assignment are valid lines with nothing to explain.
+  assert.equal(parse("# just a comment").ok, true);
+  assert.equal(parse("FOO=bar").ok, true);
+});
+
 test("no popular one-liner leaves a flag the corpus does not document", async () => {
   const pages = loadPages(SAMPLE);
   const bad = [];
@@ -251,6 +260,10 @@ test("the example preserves full option prose and the operand's own meaning", as
   const desc = (text) => result.segments.find((s) => s.text === text)?.anchor?.desc;
   assert.equal(result.segments.find((s) => s.text === "/var/log").anchor, null);
   assert.match(desc("-type"), /f regular file/);
+  // find(1) writes -type with c as its value placeholder; this command used
+  // f, so the card's title carries the word the reader typed.
+  assert.equal(result.segments.find((s) => s.text === "-type").anchor.title, "-type f");
+  assert.equal(result.segments.find((s) => s.text === "-type").anchor.value, null);
   assert.match(desc("-type"), /more than one type/);
   assert.match(desc("-name"), /fnmatch\(3\)/);
   assert.match(desc("-name"), /Don't forget to enclose the pattern in quotes/);
@@ -267,7 +280,9 @@ test("the example preserves full option prose and the operand's own meaning", as
   assert.notEqual(desc("{}"), pages.get("rm").description);
   assert.equal(result.segments.find((s) => s.text === "+").anchor.key, "find:-exec");
   assert.match(pages.get("find").description, /GNU find searches the directory tree/);
-  assert.equal(result.segments.find((s) => s.text === "find").anchor.options.length, pages.get("find").options.length);
+  // The command card carries the page's summary; the full option list is not
+  // sent with every explanation.
+  assert.equal(result.segments.find((s) => s.text === "find").anchor.desc, pages.get("find").synopsis);
 });
 
 test("the description audit detects deleted option and operand text", async () => {

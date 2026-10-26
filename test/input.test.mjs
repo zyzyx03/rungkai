@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkText, checkBody, readBody, MAX_CMD } from "../src/lib/input.js";
+import { checkText, checkBody, readBody, MAX_CMD, MAX_BODY } from "../src/lib/input.js";
 
 // The characters that are refused, named rather than written: an escape, a
 // bidi override that reads backwards, a zero-width space, a line separator,
@@ -75,4 +75,20 @@ test("a body is read only when it is small enough and it is an object", async ()
   assert.match((await readBody(request("7"))).error, /not an object/);
   assert.match((await readBody(request({ cmd: "ls" }, 10 * 1024 * 1024))).error, /the limit is/);
   assert.match((await readBody(request({ cmd: "ls", env: "a\nb" }))).error, /bad environment/);
+  // An environment is a corpus in the registry, not any word that fits.
+  assert.match((await readBody(request({ cmd: "ls", env: "evil" }))).error, /bad environment/);
+});
+
+test("a body that lies about its length is still stopped at the limit", async () => {
+  // No content-length at all, and one that is far too small for the body.
+  const big = JSON.stringify({ cmd: "ls", pad: "x".repeat(MAX_BODY) });
+  for (const headers of [{}, { "content-length": "10" }]) {
+    const request = new Request("https://x.test/api/explain", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headers },
+      body: big,
+    });
+    const { error } = await readBody(request);
+    assert.match(error, /over \d+ bytes/);
+  }
 });

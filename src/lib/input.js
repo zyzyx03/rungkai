@@ -17,6 +17,8 @@
 // or refused: a command quietly changed on its way in is a command the reader
 // cannot trust.
 
+import { ENVIRONMENTS } from "./envs.js";
+
 export const MAX_CMD = 1024;
 // A conversation is a handful of questions about one command.
 export const MAX_MESSAGES = 24;
@@ -53,9 +55,15 @@ export function checkBody(request, max = MAX_BODY) {
 export async function readBody(request) {
   const tooBig = checkBody(request);
   if (tooBig) return { error: `bad request: ${tooBig}` };
+  let raw;
+  try {
+    raw = await readText(request, MAX_BODY);
+  } catch (error) {
+    return { error: `bad request: ${error.message}` };
+  }
   let body;
   try {
-    body = await request.json();
+    body = JSON.parse(raw);
   } catch {
     return { error: "bad request: the body is not JSON" };
   }
@@ -63,5 +71,31 @@ export async function readBody(request) {
   const env = body.env ?? "all";
   const problem = checkText(env);
   if (problem) return { error: `bad environment: ${problem}` };
+  // A name that resolves to nothing would become a cache key and a search
+  // path that answers with gaps, so only the registry names are accepted.
+  if (!ENVIRONMENTS.some((entry) => entry.id === env)) {
+    return { error: `bad environment: it is not one of ${ENVIRONMENTS.map((entry) => entry.id).join(", ")}` };
+  }
   return { body, env };
+}
+
+// The body, streamed and counted. The length header is a claim; this is the
+// limit, and it holds when the claim is missing or false.
+async function readText(request, max) {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let size = 0;
+  let text = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      throw new Error(`the body is over ${max} bytes`);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
 }

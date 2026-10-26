@@ -1,4 +1,4 @@
-import { definitionEntries } from "./operands.mjs";
+import { decode, definitionEntries } from "./operands.mjs";
 
 // Options a page defines in its SYNOPSIS or symbolic mode, not in the option list.
 // rpm(8) documents {-q|--query} and friends that way; without this, `rpm -qa`
@@ -47,16 +47,4 @@ export function synopsisOptions(html, known) {
 function plain(html) {
   // Inline markup hugs its text: `{<b>-q|--query</b>}` must read as `{-q|--query}`.
   return decode(html.replace(/<[^>]+>/g, ""));
-}
-
-function decode(text) {
-  return text
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
-    .replace(/&nbsp;/g, " ")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
 }

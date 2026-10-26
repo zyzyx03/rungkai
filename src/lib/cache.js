@@ -9,11 +9,8 @@
 // and so is the explanation. What the hash buys is a short, stable name for
 // the command, and one that nobody can aim: a collision between two
 // different commands would serve one of them the other's answer, so the
-// digest is truncated to 128 bits, which is far more than a reader can
-// reach in a lifetime.
+// whole 256-bit digest is the name. It is short enough for a cache key.
 export async function commandHash(text) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(digest).slice(0, 16)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }

@@ -2,11 +2,13 @@
 import { MAN_PAGE_ICON, EXTERNAL_ICON } from "../lib/icons.js";
 import { nestPieces } from "../lib/nesting.js";
 import { SYNTAX_NOTES } from "../lib/syntax.js";
+import { completeLines } from "../lib/sse.js";
 
 const $ = (sel) => document.querySelector(sel);
 
 const els = {
   form: $("#explain-form"),
+  homeLink: $("#home-link"),
   cmd: $("#cmd"),
   clear: $("#clear"),
   explain: $("#explain"),
@@ -65,6 +67,16 @@ const COLORS = {
   operand: "#7f88ad",
 };
 
+// A link from the corpus is followed only when it leads somewhere on the web.
+function safeHref(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
 
 
 const state = { cmd: "", env: "all", mode: "explain", undo: [], busy: false, suggested: "" };
@@ -84,19 +96,27 @@ async function transitionView(update) {
   }
   viewTransition?.skipTransition();
   viewTransition = document.startViewTransition(update);
-  // updateCallbackDone carries update errors to the caller; finished can
-  // reject for the same error and must not leave an unhandled promise.
+  // updateCallbackDone carries update errors to the caller; ready and finished
+  // can reject for the same error, or for a skip, and must not be left
+  // unhandled.
+  viewTransition.ready.catch(() => {});
   viewTransition.finished.catch(() => {});
-  await viewTransition.updateCallbackDone;
+  try {
+    await viewTransition.updateCallbackDone;
+  } catch (error) {
+    // A transition skipped because a newer view is taking over is not a
+    // failure of this view: its update already ran or was replaced.
+    if (error?.name !== "AbortError") throw error;
+  }
 }
 
 /* ── explain ──────────────────────────────────────────────── */
-async function explain(cmd, env) {
+async function explain(cmd, env, historyMode = "push") {
   explainRequest?.abort();
   const request = explainRequest = new AbortController();
   state.cmd = cmd;
   state.env = env;
-  permalink(cmd, env);
+  permalink(cmd, env, historyMode);
   els.newCommand.hidden = false;
   els.escHint.hidden = false;
   // Keep the current view in place until its replacement is ready.
@@ -110,6 +130,9 @@ async function explain(cmd, env) {
     });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `explain failed (${res.status})`);
     const result = await res.json();
+    // A 200 with a body that is not an explanation is still a failure; the
+    // render path would throw halfway through and leave a broken page.
+    if (!Array.isArray(result?.segments)) throw new Error("the explainer returned an unreadable answer");
     await document.fonts?.ready;
     if (request.signal.aborted) return;
     await transitionView(() => {
@@ -143,12 +166,20 @@ function setBusy(busy) {
   els.form.setAttribute("aria-busy", String(busy));
 }
 
-function permalink(cmd, env) {
+// The address bar is the view: a new command is a new history entry, an
+// environment switch replaces the current one, and Back renders the entry it
+// lands on. "none" writes nothing (the browser is already moving).
+function permalink(cmd, env, mode = "replace") {
+  if (mode === "none") return;
   const url = new URL(location.href);
   if (cmd) url.searchParams.set("cmd", cmd);
   else url.searchParams.delete("cmd");
   url.searchParams.set("env", env);
-  history.replaceState(null, "", url);
+  const current = `${location.pathname}${location.search}${location.hash}`;
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  if (next === current) return;
+  if (mode === "push") history.pushState({ cmd, env }, "", url);
+  else history.replaceState({ cmd, env }, "", url);
 }
 
 /* ── render ────────────────────────────────────────────────── */
@@ -235,7 +266,7 @@ function render(result, cmd) {
   els.results.classList.toggle("has-entries", hasEntries);
   tldrText = "";
   els.tldr.hidden = true;
-  tldrRun++;
+  stopTldr();
   els.tldrButton.setAttribute("aria-expanded", "false");
   updateStatus(result);
   floatCommand();
@@ -266,8 +297,8 @@ function makeEntry(seg, kind, index) {
   kindTag.textContent = categoryFor(seg, kind);
   head.append(title, kindTag);
   // What the option takes, in the page's own words: "identity_file". The
-  // heading usually says it already — "-mtime n" is the page's usage line —
-  // so the chip is only for a page that gives no usage.
+  // heading usually says it already, with the command's own value in the
+  // page's usage line, so the chip is only for a page that gives no usage.
   const value = seg.anchor?.value;
   if (kind === "arg" && value && /^[A-Za-z][\w.-]*$/.test(value) && !seg.anchor?.title?.includes(value)) {
     const valueTag = document.createElement("span");
@@ -282,32 +313,9 @@ function makeEntry(seg, kind, index) {
 
   article.append(head, body);
 
-  if (kind === "tool" && seg.anchor?.description) {
-    const prose = document.createElement("p");
-    prose.className = "entry-body";
-    prose.textContent = seg.anchor.description;
-    article.append(prose);
-  }
-  if (kind === "tool" && seg.anchor?.options?.length) {
-    const list = document.createElement("details");
-    const summary = document.createElement("summary");
-    summary.textContent = `All options (${seg.anchor.options.length})`;
-    list.append(summary);
-    for (const option of seg.anchor.options) {
-      const term = document.createElement("p");
-      term.className = "font-mono mt-3";
-      term.textContent = option.usage || option.names.join(", ");
-      const definition = document.createElement("p");
-      definition.className = "entry-body";
-      definition.textContent = option.desc || "The page names this option, but no description was extracted.";
-      list.append(term, definition);
-    }
-    list.addEventListener("toggle", () => drawConnectors(true));
-    article.append(list);
-  }
-
   const citation = citationFor(seg, kind);
-  if (citation || seg.anchor?.url) {
+  const href = safeHref(seg.anchor?.url);
+  if (citation || href) {
     const ref = document.createElement("p");
     ref.className = "entry-ref";
     if (citation) {
@@ -315,15 +323,17 @@ function makeEntry(seg, kind, index) {
       cite.textContent = citation;
       ref.append(cite);
     }
-    if (seg.anchor?.url) {
-      const env = seg.anchor.env.replace("/", " ");
+    if (href) {
+      const env = String(seg.anchor.env ?? "").replace("/", " ");
       const link = document.createElement("a");
       link.className = "source-chip";
-      link.href = seg.anchor.url;
+      link.href = href;
       link.rel = "noreferrer";
       link.target = "_blank";
       link.setAttribute("aria-label", `${env} man page`);
-      link.innerHTML = `${MAN_PAGE_ICON}<span>${env}</span>${EXTERNAL_ICON}`;
+      // Only our own marks go through innerHTML; the corpus's words are text.
+      link.innerHTML = `${MAN_PAGE_ICON}<span></span>${EXTERNAL_ICON}`;
+      link.querySelector("span").textContent = env;
       ref.append(link);
     }
     article.append(ref);
@@ -971,6 +981,14 @@ if ("ResizeObserver" in window) {
 // never wears a citation.
 let tldrRun = 0;
 let tldrText = "";
+let tldrRequest;
+
+// A summary that is no longer about the command on screen is stopped, not
+// merely ignored: its reader would otherwise keep the connection open.
+function stopTldr() {
+  tldrRun += 1;
+  tldrRequest?.abort();
+}
 
 // The model leads with one line naming the danger, so the reader sees the
 // warning before the explanation. The line is the model's, not ours: it is
@@ -992,7 +1010,9 @@ function showTldr(text) {
 }
 
 async function loadTldr(cmd) {
-  const run = ++tldrRun;
+  stopTldr();
+  const run = tldrRun;
+  const request = (tldrRequest = new AbortController());
   els.tldr.hidden = false;
   els.tldr.classList.add("is-pending");
   if (!tldrText) els.tldrText.textContent = "";
@@ -1001,32 +1021,42 @@ async function loadTldr(cmd) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ cmd, env: state.env }),
+      signal: request.signal,
     });
     if (!res.ok) throw new Error("no summary");
-    // The answer arrives as it is written, so the reader watches it land.
+    // The answer arrives as it is written, so the reader watches it land. A
+    // network chunk can end mid-line, so only complete lines are read and the
+    // rest waits for the next chunk.
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let text = "";
+    let buffer = "";
+    const consume = (line) => {
+      if (!line.startsWith("data: ")) return;
+      const payload = line.slice(6).trim();
+      if (payload === "[DONE]") return;
+      let piece = "";
+      try {
+        piece = JSON.parse(payload).choices?.[0]?.delta?.content ?? "";
+      } catch {
+        return;
+      }
+      if (!piece) return;
+      if (!text) els.tldr.classList.remove("is-pending");
+      text += piece;
+      showTldr(text);
+    };
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      if (run !== tldrRun) return;
-      for (const line of decoder.decode(value, { stream: true }).split("\n")) {
-        if (!line.startsWith("data: ")) continue;
-        const payload = line.slice(6).trim();
-        if (payload === "[DONE]") continue;
-        let piece = "";
-        try {
-          piece = JSON.parse(payload).choices?.[0]?.delta?.content ?? "";
-        } catch {
-          continue;
-        }
-        if (!piece) continue;
-        if (!text) els.tldr.classList.remove("is-pending");
-        text += piece;
-        showTldr(text);
-      }
+      if (run !== tldrRun) return void (await reader.cancel().catch(() => {}));
+      const next = completeLines(buffer, decoder.decode(value, { stream: true }));
+      buffer = next.buffer;
+      for (const line of next.lines) consume(line);
     }
+    buffer += decoder.decode();
+    if (buffer) consume(buffer);
+    if (run !== tldrRun) return;
     const { body, danger } = showTldr(text.trim());
     tldrText = danger ? `DANGER: ${danger}\n${body}` : body;
   } catch {
@@ -1034,6 +1064,7 @@ async function loadTldr(cmd) {
     if (run === tldrRun) els.tldr.hidden = true;
   } finally {
     if (run === tldrRun) els.tldr.classList.remove("is-pending");
+    if (tldrRequest === request) tldrRequest = null;
   }
 }
 
@@ -1087,8 +1118,8 @@ async function suggest(request) {
     state.suggested = data.command;
     els.suggestion.classList.remove("is-pending");
     els.suggestionCommand.textContent = data.command;
-    els.suggestionRationale.textContent = data.rationale ?? "";
-    els.suggestionAssumed.textContent = data.assumed ? `assumed: ${data.assumed}` : "";
+    els.suggestionRationale.textContent = typeof data.rationale === "string" ? data.rationale : "";
+    els.suggestionAssumed.textContent = typeof data.assumed === "string" && data.assumed ? `assumed: ${data.assumed}` : "";
     // The command is what a reader might run, so the panel says what it rests
     // on. No command means the model had none, and the panel says that too
     // rather than showing an empty command under a heading.
@@ -1216,22 +1247,26 @@ setMode("explain");
 
 /* Home: no command, the default corpus, the samples back, nothing to undo.
    The clear button, the Escape key and the "new command" link all land here. */
-function goHome() {
+function goHome(historyMode = "push") {
+  const alreadyHome = !state.cmd;
   explainRequest?.abort();
   setBusy(false);
-  tldrRun++;
+  stopTldr();
   els.cmd.value = "";
   state.cmd = "";
   state.undo = [];
   els.undo.hidden = true;
   setEnv("all");
-  permalink("", state.env);
+  permalink("", state.env, historyMode === "none" ? "none" : alreadyHome ? "replace" : historyMode);
   els.statusDot.className = "inline-block h-1.5 w-1.5 bg-ink-dim";
   els.statusText.textContent = "Ready when you are";
   els.newCommand.hidden = true;
   els.escHint.hidden = true;
   els.suggestion.hidden = true;
   els.suggestion.classList.remove("is-pending");
+  // Home starts at the top, whether it was reached from the X, the wordmark,
+  // Escape or the Back button.
+  scrollTo({ top: 0, behavior: reducedMotion() ? "instant" : "smooth" });
   transitionView(() => {
     delete document.documentElement.dataset.initialCommand;
     releaseRoute();
@@ -1242,7 +1277,7 @@ function goHome() {
     connectorKey = "";
     els.examples.hidden = false;
     els.results.hidden = true;
-  });
+  }).catch((error) => console.error("the home view could not be shown", error));
 }
 
 els.clear.addEventListener("click", () => {
@@ -1251,6 +1286,15 @@ els.clear.addEventListener("click", () => {
 });
 
 els.newCommand.addEventListener("click", () => {
+  goHome();
+  els.cmd.focus();
+});
+
+// The wordmark is a home link: a modified click still opens the site in a
+// new tab, and a plain click resets the view without a reload.
+els.homeLink?.addEventListener("click", (event) => {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
   goHome();
   els.cmd.focus();
 });
@@ -1286,7 +1330,7 @@ els.envMenu.addEventListener("click", (event) => {
     // undoable: the reader can go back to the environment they came from.
     state.undo.push({ cmd: state.cmd, env: previous });
     els.undo.hidden = false;
-    explain(state.cmd, id);
+    explain(state.cmd, id, "replace");
   }
 });
 
@@ -1453,10 +1497,29 @@ els.undo.addEventListener("click", () => {
 });
 
 const params = new URLSearchParams(location.search);
-const initialEnv = params.get("env");
-if (initialEnv) setEnv(initialEnv);
 const initial = params.get("cmd");
+const initialEnv = params.get("env");
+if (initialEnv) {
+  // An environment that is not in the picker falls back to "all", and the
+  // address bar must not keep a name the page is not using.
+  const resolved = setEnv(initialEnv);
+  if (resolved !== initialEnv) permalink(initial ?? "", resolved);
+}
 if (initial) {
   els.cmd.value = initial;
-  explain(initial, state.env);
+  explain(initial, state.env, "replace");
 }
+
+// Back and Forward render the entry the browser lands on, without writing a
+// new one of their own.
+addEventListener("popstate", () => {
+  const params = new URLSearchParams(location.search);
+  const cmd = params.get("cmd");
+  const env = setEnv(params.get("env") ?? "all");
+  if (!cmd) {
+    goHome("none");
+    return;
+  }
+  els.cmd.value = cmd;
+  explain(cmd, env, "none");
+});

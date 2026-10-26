@@ -38,7 +38,8 @@ export async function parseOneLiner(cmd) {
   let tree;
   try {
     tree = parser.parse(cmd);
-  } catch {
+  } catch (error) {
+    console.error("the shell parser failed", error);
     return { ok: false, commands: [], syntax: [] };
   }
   const parsed = readTree(tree);

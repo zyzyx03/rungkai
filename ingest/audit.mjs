@@ -18,8 +18,6 @@ import { resolveCommands } from "../src/lib/wrap.js";
 function commandsFor(page) {
   const long = [];
   const short = [];
-  const bundle = [];
-  const attached = [];
   const placeholder = [];
   for (const option of page.options ?? []) {
     for (const name of option.names) {

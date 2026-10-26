@@ -87,7 +87,7 @@ document per tool. It is the only thing Rungkai may anchor to. The format:
   "options": [{ "names": ["-4"], "desc": "Forces ssh to use IPv4 addresses only." }],
   "values": { "-i": "identity_file" },
   "operands": [{ "name": "destination", "desc": "ssh connects and logs into..." }],
-  "chunks": [{ "text": "..." }],
+  "chunks": [{ "text": "...", "embedding": [0.01, -0.02, "..."] }],
   "cluster": true
 }
 ```
@@ -129,50 +129,63 @@ node ingest/ingest.mjs --env el9 --from-dir .corpus/el9/man
 
 Ubuntu's package list lives at the top of `ingest/ingest.mjs`; extend it
 freely. It covers `main` and `universe`, because Ubuntu keeps half the tools
-people type out of the main archive. A Ubuntu 24.04 corpus is about 1300
+people type out of the main archive. A Ubuntu 24.04 corpus is about 2300
 pages, before the shared Docker pages are added.
 
 Ingestion clears the directory it writes to: a corpus is a build, and a build
 starts from nothing. Copy the shared Docker pages in after it, not before.
 
 For a distribution whose man tree you have to build yourself, the shape is
-always the same — take `/usr/share/man` out of a container of that release:
+always the same — take `/usr/share/man` out of a container of that release.
+EL9 uses Jeff Geerling's systemd-enabled Rocky 9 image, which already carries
+the dnf and rpm pages; the install adds the rest.
 
 ```sh
-docker run --rm -v "$PWD/.corpus/el9:/out" rockylinux:9 bash -lc '
+docker run --rm -v "$PWD/.corpus/el9:/out" geerlingguy/docker-rockylinux9-ansible:latest bash -lc '
   dnf -y swap coreutils-single coreutils
   dnf -y swap curl-minimal curl
-  dnf -y install man-pages findutils grep sed tar procps-ng iproute \
-    openssh-clients util-linux systemd git less rsync sudo gzip man which \
+  dnf -y install man-pages man-db findutils grep sed tar procps-ng iproute \
+    openssh-clients util-linux systemd git less rsync sudo gzip which \
     make iputils openssl wget unzip e2fsprogs cmake python3 file diffutils \
-    lsof psmisc nmap-ncat traceroute gawk >/dev/null
+    lsof psmisc nmap-ncat traceroute gawk cronie dnf rpm >/dev/null
   cp -a /usr/share/man /out/man'
 node ingest/ingest.mjs --env el9 --from-dir .corpus/el9/man \
-  --source-base https://man7.org/linux/man-pages
+  --source-base "https://www.mankier.com/{section}/{name}"
 ```
 
-Two caveats worth knowing before you start:
+`cronie` carries `crontab(1)` and `cron(8)`, so they no longer need a separate
+download.
 
-- **Alpine's core tools are BusyBox applets** and BusyBox ships no man pages.
-  Do not install Alpine's `coreutils` to get GNU pages: those describe the GNU
-  tools, not the applets an Alpine user actually runs. Only packages that
-  genuinely ship a page can be anchored; the rest are shown as gaps. Alpine's
-  `bash` ships no page either, so the shell's builtins have no flags of their
-  own there.
+Alpine ships its man pages in `-doc` subpackages. Take them from the release
+container:
+
+```sh
+docker run --rm -v "$PWD/.corpus/alpine:/out" alpine:3.22 sh -lc '
+  apk add --no-cache man-pages apk-tools-doc openrc-doc busybox-doc bash bash-doc
+  cp -a /usr/share/man /out/man'
+node ingest/ingest.mjs --env alpine/3.22 --from-dir .corpus/alpine/man \
+  --source-base "https://www.mankier.com/{section}/{name}"
+```
+
+The source base is either a directory mirror (`https://man7.org/linux/man-pages`
+gives `/man1/ls.1.html`) or a template with `{section}`, `{name}` and `{page}`.
+Mankier covers dnf, rpm, apk and OpenRC; man7 does not carry the distribution
+tools.
+
+Caveats worth knowing before you start:
+
+- **Alpine's core tools are BusyBox applets** and BusyBox ships no per-applet
+  page. Do not install `coreutils-doc` to get GNU pages: those describe tools
+  the Alpine reader may not be running. Only packages that genuinely ship a
+  page can be anchored; the rest are shown as gaps. `bash-doc` is included so
+  the shell's builtins and syntax have their bash(1) page.
+- **OpenRC has no `rc(8)` page of its own.** Ingestion writes `rc` as an alias
+  of `openrc(8)`, which is the same service manager; `rc-service`, `rc-update`
+  and the rest keep their own pages.
 - **The Rocky image ships `coreutils-single` and `curl-minimal`**, and both
   conflict with the packages that carry the man pages. One conflicting
   package fails the whole install, so swap them first, as the recipe above
-  does, or `cat`, `cp`, `ls` and `curl` are missing from the tree.
-
-Some pages are not in the distribution's packages at all. `crontab(1)` and
-`cron(8)` are upstream cronie's, so take them from cronie itself:
-
-```sh
-mkdir -p .corpus/el9/man/man1 .corpus/el9/man/man8
-for p in man/crontab.1:man1/crontab.1.gz man/cron.8:man8/cron.8.gz; do
-  curl -sL "https://raw.githubusercontent.com/cronie-crond/cronie/master/${p%%:*}" | gzip -9 > ".corpus/el9/man/${p##*:}"
-done
-```
+  does.
 
 **Docker** is a special case: the CLI reference is written as man pages, so
 `docker run` is `docker-run(1)`. The `docker-ce-cli` package ships them, and
@@ -183,6 +196,21 @@ node ingest/ingest.mjs --env docker --from-dir /path/to/docker/man
 cp .corpus/docker/pages/*.json .corpus/noble/pages/
 cp .corpus/docker/pages/*.json .corpus/el9/pages/
 ```
+
+### Embeddings: giving chat and the recommender their excerpts
+
+`retrieve()` scores the `chunks[]` a page carries. Ingesting writes the text;
+the vectors come from the same Workers AI model the worker uses:
+
+```sh
+CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... \
+  node ingest/embed.mjs .corpus/noble/pages
+```
+
+The token needs **Workers AI: Read**. Pages that already carry chunks are
+skipped; `--force` re-embeds them. Without this pass, chat and the recommender
+still answer — the prompt says no excerpts were retrieved — but nothing is
+grounded in the corpus.
 
 ### Export: moving a corpus in and out of R2
 
@@ -239,8 +267,6 @@ packages, so a distribution that is Ubuntu underneath needs no second ingest:
 
 ## Not built yet
 
-- The embedding pass in the ingestion script. `chunks[]` carries text only, so
-  the recommender and chat retrieve nothing until that TODO is filled in.
 - `--help` captures for tools that ship no man page.
 - FreeBSD and Ubuntu 22.04 corpora.
 - A licence index page per corpus. Ingestion extracts each page's COPYRIGHT

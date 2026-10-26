@@ -5,35 +5,25 @@ export class Budget {
   constructor(state, env) {
     this.state = state;
     this.env = env;
-    this.bucket = null;
   }
 
-  async load() {
-    if (!this.bucket) {
-      this.bucket = (await this.state.storage.get("bucket")) ?? {
-        micro: Number(this.env.DAILY_BUDGET_MICRO),
-        at: Date.now(),
-      };
-    }
-    return this.bucket;
-  }
-
+  // The bucket is read from storage on every op. The object serves one request
+  // at a time, so the read-modify-write below is atomic; a copy kept in memory
+  // would be a value that a second op has already replaced.
   async fetch(request) {
     const { op, micro } = await request.json();
     const capacity = Number(this.env.DAILY_BUDGET_MICRO);
     const perSecond = capacity / 86400;
-    const bucket = await this.load();
+    const bucket = (await this.state.storage.get("bucket")) ?? { micro: capacity, at: Date.now() };
 
     if (op === "take") {
       const result = take(bucket, micro, Date.now(), capacity, perSecond);
-      this.bucket = result.bucket;
       await this.state.storage.put("bucket", result.bucket);
       return Response.json({ ok: result.ok });
     }
 
     if (op === "adjust") {
-      this.bucket = adjust(bucket, micro, Date.now(), capacity);
-      await this.state.storage.put("bucket", this.bucket);
+      await this.state.storage.put("bucket", adjust(bucket, micro, Date.now(), capacity));
       return Response.json({ ok: true });
     }
 

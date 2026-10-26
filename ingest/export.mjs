@@ -86,16 +86,17 @@ const listRemote = () => {
   return keys;
 };
 
-const getRemote = (key) => {
+const getRemote = (key, dest) => {
   const { account, key: id, secret } = s3();
-  const out = execFileSync("aws", [
+  // get-object takes the destination file as a positional argument; without
+  // it the CLI refuses the call instead of writing the body to stdout.
+  execFileSync("aws", [
     "s3api", "get-object",
     "--endpoint-url", `https://${account}.r2.cloudflarestorage.com`,
     "--bucket", BUCKET,
     "--key", key,
+    dest,
   ], { env: { ...process.env, AWS_ACCESS_KEY_ID: id, AWS_SECRET_ACCESS_KEY: secret }, maxBuffer: 64 << 20 });
-  // get-object writes the body to stdout with --output -.
-  return out;
 };
 
 // The page files are named after the tool, so a key of "env/tool.json"
@@ -110,8 +111,9 @@ if (keys.length === 0) {
 
 let done = 0;
 for (const key of keys) {
-  const body = local ? await getLocal(key) : getRemote(key);
-  writeFileSync(join(dir, nameFor(key)), body);
+  const dest = join(dir, nameFor(key));
+  if (local) writeFileSync(dest, await getLocal(key));
+  else getRemote(key, dest);
   done++;
   if (done % 100 === 0) console.log(`${done}/${keys.length}`);
 }

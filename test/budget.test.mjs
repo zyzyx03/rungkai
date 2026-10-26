@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { take, adjust } from "../src/lib/budget.js";
+import { take, adjust, settledCost } from "../src/lib/budget.js";
 
 const CAP = 1_000_000;
 const RATE = CAP / 86400; // one day's budget per day
@@ -40,4 +40,14 @@ test("take then adjust charges actual usage or refunds the estimate", () => {
     }
     assert.equal(adjust(taken.bucket, est, 0, CAP).micro, balance);
   }
+});
+
+test("a settled stream charges usage, the estimate when only content arrived, and nothing when it did not", () => {
+  const est = 390;
+  assert.equal(settledCost(est, { prompt_tokens: 100, completion_tokens: 200 }, true, 0.15, 0.6), 100 * 0.15 + 200 * 0.6);
+  // Words arrived without a usage block: the model was paid, so the estimate stands.
+  assert.equal(settledCost(est, null, true, 0.15, 0.6), est);
+  // A stream that delivered nothing is refunded whole.
+  assert.equal(settledCost(est, null, false, 0.15, 0.6), 0);
+  assert.equal(settledCost(est, undefined, true, 0.15, 0.6), est);
 });

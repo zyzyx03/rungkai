@@ -445,61 +445,6 @@ body {
 #suggestion-basis,
 #suggestion-ground,
 #suggestion-assumed { color: #a9b1d6; }
-/* The warning the model led with. A filled box in the signal colour, the
-   language of the source chip: this is the one thing on the page that is
-   about the command rather than about its parts. */
-.tldr-danger {
-  display: inline-block;
-  margin: 0.7rem 0 0;
-  padding: 0.18rem 0.5rem;
-  border-radius: 4px;
-  background: rgba(247, 118, 142, 0.16);
-  color: #f7768e;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11.5px;
-  line-height: 1.4;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-/* While the model writes, the panel shows a line of shimmer rather than an
-   empty box, so the reader can see it is working. */
-.tldr.is-pending /* The suggestion panel is the slab's material and the slab's edge: the neon
-   hairline and its halo, the sheen, and no drop shadow — the slab floats, this
-   sits in the flow. */
-#suggestion {
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.06), 0 0 16px -8px rgba(56, 189, 248, 0.45), inset 0 1px 0 rgba(238, 240, 246, 0.1);
-}
-
-/* The panel folds to its command: the reasoning is the part the reader can
-   do without. Folded, it is one line — the label, the command, what it rests
-   on, the buttons. A note the reader has finished with should not take three
-   rows of the page. */
-#suggestion.is-collapsed #suggestion-rationale,
-#suggestion.is-collapsed #suggestion-assumed { display: none; }
-#suggestion.is-collapsed {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.3rem 0.9rem;
-  padding: 0.5rem 0.75rem;
-}
-#suggestion.is-collapsed > div,
-#suggestion.is-collapsed #suggestion-meta { display: contents; }
-#suggestion.is-collapsed #suggestion-label { order: 1; }
-#suggestion.is-collapsed #suggestion-command { order: 2; }
-#suggestion.is-collapsed #suggestion-ground { order: 3; margin-top: 0; }
-/* The basis ("new command") is about how the suggestion was made; folded,
-   the reader wants the command and what it rests on. */
-#suggestion.is-collapsed #suggestion-basis { display: none; }
-#suggestion.is-collapsed #suggestion-buttons { order: 5; }
-#suggestion.is-collapsed #suggestion-toggle { order: 6; margin-left: auto; }
-#suggestion.is-collapsed #suggestion-dismiss { order: 7; }
-.suggestion-chevron {
-  width: 11px;
-  height: 11px;
-  transition: transform 0.18s ease;
-}
-#suggestion.is-collapsed .suggestion-chevron { transform: rotate(180deg); }
 /* The bar that stands for the words the model is still writing. It is the
    slab's own frame, lit: a rail of neon with the light travelling along it,
    so the reader sees the model work rather than a dead panel. */

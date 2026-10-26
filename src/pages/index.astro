@@ -37,12 +37,14 @@ const exampleHref = (cmd, env) =>
     <main class="mx-auto max-w-[1080px] px-6 pb-24">
       <section class="pt-12 pb-7 text-center">
         <div class="flex items-center justify-center gap-2">
-          <svg class="seal text-ink" viewBox="7 14 114 98" aria-hidden="true" focusable="false">
-            <g class="seal-half seal-half-left"><path d="M39 18 11 38v47l28 23V18Z" /></g>
-            <g class="seal-half seal-half-right"><path d="M89 18l28 20v47l-28 23V18Z" /></g>
-            <g class="seal-face text-cyan"><path d="m47 53 8 9-8 9" /><path d="M60 73h8" /><path d="m81 53-8 9 8 9" /></g>
-          </svg>
-          <h1 class="font-display text-[clamp(2.15rem,4.6vw,3rem)] font-bold uppercase leading-none tracking-[0.04em] text-ink">rungkai<span class="text-cyan">.</span></h1>
+          <a id="home-link" href="/" class="flex items-center justify-center gap-2 text-inherit no-underline" aria-label="Rungkai home">
+            <svg class="seal text-ink" viewBox="7 14 114 98" aria-hidden="true" focusable="false">
+              <g class="seal-half seal-half-left"><path d="M39 18 11 38v47l28 23V18Z" /></g>
+              <g class="seal-half seal-half-right"><path d="M89 18l28 20v47l-28 23V18Z" /></g>
+              <g class="seal-face text-cyan"><path d="m47 53 8 9-8 9" /><path d="M60 73h8" /><path d="m81 53-8 9 8 9" /></g>
+            </svg>
+            <h1 class="font-display text-[clamp(2.15rem,4.6vw,3rem)] font-bold uppercase leading-none tracking-[0.04em] text-ink">rungkai<span class="text-cyan">.</span></h1>
+          </a>
         </div>
         <p class="mx-auto mt-5 text-[17px] leading-snug text-ink">Understand every part of your command.</p>
         <p class="mx-auto mt-1.5 text-[15px] leading-snug text-ink-muted">Trace each token back to its documentation.</p>

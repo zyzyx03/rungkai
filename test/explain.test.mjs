@@ -138,6 +138,21 @@ const ssh = {
 const sshParsed = (args) => ({ commands: [{ name: "ssh", nameSpan: [0, 3], args }], syntax: [] });
 const cardOf = (result, text) => result.segments.find((s) => s.text === text && s.anchor)?.anchor;
 
+test("command cards carry the summary while used flags keep their own definitions", () => {
+  const page = { ...ssh, description: "The complete SSH manual. ".repeat(1000) };
+  const result = explain("ssh -N host", sshParsed([
+    { text: "-N", span: [4, 6] },
+    { text: "host", span: [7, 11] },
+  ]), { ssh: page }, "el9");
+  const command = cardOf(result, "ssh");
+  assert.equal(command.desc, page.synopsis);
+  assert.equal(command.url, page.source);
+  assert.equal("description" in command, false);
+  assert.equal("options" in command, false);
+  assert.equal(cardOf(result, "-N").desc, "no remote command");
+  assert.equal(cardOf(result, "host").desc, "the host to log into");
+});
+
 test("the word after an option that takes a value belongs to that option", () => {
   const result = explain("ssh -i keyfile", sshParsed([{ text: "-i", span: [4, 6] }, { text: "keyfile", span: [7, 14] }]), { ssh }, "el9");
   assert.equal(cardOf(result, "-i").key, cardOf(result, "keyfile").key);

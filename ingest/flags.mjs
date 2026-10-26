@@ -1,4 +1,4 @@
-import { text, definitionEntries, blockBody } from "./operands.mjs";
+import { text, decode, definitionEntries, blockBody } from "./operands.mjs";
 
 // man(7) pages (docker-style tooling) print each flag as its own paragraph:
 //   <b>-f</b>, <b>--file</b> <i>PATH</i> <br/> description
@@ -23,18 +23,6 @@ export function flagParagraphOptions(html, known) {
     out.push({ names: [...new Set(names)], desc });
   }
   return out;
-}
-
-function decode(text) {
-  return text
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
-    .replace(/&nbsp;/g, " ")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&");
 }
 
 // The body of a section of a page, as plain text. A section's words may sit

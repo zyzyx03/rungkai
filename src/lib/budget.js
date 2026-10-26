@@ -9,3 +9,11 @@ export function take(bucket, cost, now, capacity, perSecond) {
 export function adjust(bucket, delta, now, capacity) {
   return { micro: Math.min(capacity, Math.max(0, bucket.micro + delta)), at: now };
 }
+
+// What a streamed completion costs once it has ended. Usage is the bill;
+// without it, an answer that started means the model was paid, so the
+// estimate stands, and a stream that never started is refunded whole.
+export function settledCost(est, usage, answered, inRate, outRate) {
+  if (usage) return usage.prompt_tokens * inRate + usage.completion_tokens * outRate;
+  return answered ? est : 0;
+}

@@ -404,12 +404,10 @@ export function definitionEntries(html) {
   return entries;
 }
 
-export function text(html) {
+// The entities a man page writes, decoded. Every reader of a page uses this
+// one, so an entity is understood the same way in the prose and in a flag.
+export function decode(html) {
   return String(html)
-    // An emphasis tag inside a word does not break the word: mandoc writes a
-    // short flag as "-<b>b</b>", and a space there loses the flag.
-    .replace(/<\/?(?:b|i|em|strong|code|var|span)\b[^>]*>/g, "")
-    .replace(/<[^>]+>/g, " ")
     .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
     .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
     .replace(/&nbsp;/g, " ")
@@ -417,7 +415,17 @@ export function text(html) {
     .replace(/&apos;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
+    .replace(/&amp;/g, "&");
+}
+
+export function text(html) {
+  return decode(
+    String(html)
+      // An emphasis tag inside a word does not break the word: mandoc writes a
+      // short flag as "-<b>b</b>", and a space there loses the flag.
+      .replace(/<\/?(?:b|i|em|strong|code|var|span)\b[^>]*>/g, "")
+      .replace(/<[^>]+>/g, " "),
+  )
     .replace(/\s+/g, " ")
     .trim();
 }

@@ -5,7 +5,7 @@
 import { execFileSync } from "node:child_process";
 import { gunzipSync } from "node:zlib";
 import { mkdirSync, writeFileSync, readdirSync, readFileSync, existsSync, rmSync, lstatSync, readlinkSync } from "node:fs";
-import { join, basename } from "node:path";
+import { join, basename, resolve } from "node:path";
 import { synopsisOptions } from "./synopsis.mjs";
 import { parseOptions, proseOptions } from "./flags.mjs";
 import { optionValues, synopsisFacts, operandDocs, definitionEntries, text as plain } from "./operands.mjs";
@@ -32,7 +32,7 @@ const PACKAGES = [
   "manpages", "manpages-dev", "git-man", "coreutils", "procps", "iproute2",
   "openssh-client", "tar", "findutils", "grep", "sed", "gawk", "curl", "less",
   "rsync", "util-linux", "systemd", "net-tools", "iptables", "nftables",
-  "cron", "apt",
+  "cron", "apt", "dpkg",
   // The tools people reach for when the shell is not enough.
   "sudo", "gzip", "man-db", "debianutils", "make", "iputils-ping", "openssl",
   "wget", "unzip", "e2fsprogs", "cmake", "python3", "file", "diffutils",
@@ -56,14 +56,19 @@ const PACKAGES = [
   "dash", "zsh", "fish", "w3m", "lynx", "youtube-dl", "git-lfs", "mpstat",
   "pidstat", "dstat", "default-jdk-headless", "protobuf-compiler",
   "rpcsvc-proto", "systemtap", "golang-golang-x-tools", "lua5.1", "lua5.2",
-  "lua5.3", "lynx", "bzip2", "xz-utils",
+  "lua5.3",
 ];
 
 const work = `.corpus/${release}`;
 const debs = join(work, "debs");
 const out = fromDir ? `.corpus/${envId}/pages` : join(work, "pages");
 // The corpus is a build, and a build starts from nothing: a page that is no
-// longer written must not stay behind.
+// longer written must not stay behind. It must not delete its own input
+// either, which is what happens if --from-dir points at the output.
+if (fromDir && resolve(fromDir) === resolve(out)) {
+  console.error(`--from-dir ${fromDir} is the directory this build writes; refusing to delete it`);
+  process.exit(1);
+}
 
 if (!has("mandoc")) {
   console.error("mandoc is required: sudo apt install mandoc");
@@ -119,11 +124,23 @@ if (!manRoot) {
 
 const sourceFor = (dir, file, tool) => {
   const page = file.replace(/\.gz$/, "");
-  if (sourceBase) return `${sourceBase.replace(/\/$/, "")}/${dir}/${page}.html`;
+  if (sourceBase) {
+    const base = sourceBase.replace(/\/$/, "");
+    // A mirror with a directory layout takes the plain base; a template
+    // names the section and the page, which is how a flat browser works.
+    if (base.includes("{")) {
+      return base
+        .replace(/\{section\}/g, dir.replace("man", ""))
+        .replace(/\{name\}/g, tool)
+        .replace(/\{page\}/g, page);
+    }
+    return `${base}/${dir}/${page}.html`;
+  }
   if (!fromDir && UBUNTU_ENV[release]) return `https://manpages.ubuntu.com/manpages/${release}/en/${dir}/${page}.html`;
   // The docker corpus is the CLI reference: each page is the docs for the
   // same command. The reference has moved, and these three commands are only
   // at the new address.
+  if (tool === "docker") return "https://docs.docker.com/reference/cli/docker/";
   if (tool.startsWith("docker-")) {
     const sub = tool.slice("docker-".length);
     return DOCKER_DOCS[sub] ?? `https://docs.docker.com/engine/reference/commandline/${sub.replace(/-/g, "_")}/`;
@@ -162,6 +179,9 @@ const DEFAULTS = new Set(["true", "false", "yes", "no"]);
 // the first that exists wins.
 const ALIASES = {
   awk: ["mawk", "gawk"],
+  // OpenRC documents the command as openrc(8); Alpine's `rc` is that service
+  // manager, and the page is the one the reader needs.
+  rc: ["openrc"],
   fd: ["fdfind"],
   sar: ["sar.sysstat"],
   ksh: ["ksh93"],

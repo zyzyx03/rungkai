@@ -12,10 +12,10 @@ test("two commands never get the same name", async () => {
   assert.notEqual(a, b);
 });
 
-test("the name is short enough to be a key", async () => {
+test("the name is the whole digest, so a collision is not reachable", async () => {
   const hash = await commandHash("x".repeat(1024));
-  assert.equal(hash.length, 32);
-  assert.match(hash, /^[0-9a-f]{32}$/);
+  assert.equal(hash.length, 64);
+  assert.match(hash, /^[0-9a-f]{64}$/);
 });
 
 test("the name does not carry the command", async () => {

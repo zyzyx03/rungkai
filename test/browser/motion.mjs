@@ -14,6 +14,7 @@ import { resolveCommands } from "../../src/lib/wrap.js";
 let responseDelay = 0;
 let scriptDelay = 0;
 let failResponse = false;
+let legacyManual = false;
 const server = createServer(async (req, res) => {
   try {
     if (req.url === "/api/explain") {
@@ -32,7 +33,15 @@ const server = createServer(async (req, res) => {
         try { return JSON.parse(await readFile(new URL(`../fixtures/corpus/${name}.json`, import.meta.url))); }
         catch { return null; }
       }, pages);
-      res.end(JSON.stringify(explain(cmd, { ...parsed, commands }, pages, env)));
+      const result = explain(cmd, { ...parsed, commands }, pages, env);
+      if (legacyManual) {
+        const anchor = result.segments.find((s) => s.kind === "tool" && s.tool === "ssh")?.anchor;
+        if (anchor) Object.assign(anchor, {
+          description: "Unrelated manual section. ".repeat(1000),
+          options: [{ names: ["--unused"], desc: "An unused option." }],
+        });
+      }
+      res.end(JSON.stringify(result));
       return;
     }
     const pathname = new URL(req.url, "http://localhost").pathname;
@@ -245,13 +254,52 @@ try {
   await submit("echo hello");
   await waitFor("!document.querySelector('#explain').disabled");
   assert.ok(await evaluate("[...document.querySelectorAll('path[data-step]')].some(p => p.getAnimations().length)"), "route animation also works without View Transition API");
+  // Older cached responses can still contain the entire manual. Rendering
+  // stays concise even before those cached payloads expire.
+  legacyManual = true;
+  for (const width of [1440, 390]) {
+    await viewport(width);
+    await submit('tar zcf - some-dir | ssh some-server "cd /; tar xvzf -"');
+    await waitFor("!document.querySelector('#explain').disabled");
+    await frames();
+    const sshCard = await evaluate(`(() => {
+      const card = [...document.querySelectorAll('.entry')].find(e => e.querySelector('h3').textContent === 'ssh');
+      return { bodies: card.querySelectorAll('.entry-body').length, details: card.querySelectorAll('details').length,
+        text: card.textContent, height: card.getBoundingClientRect().height, sources: card.querySelectorAll('a.source-chip').length };
+    })()`);
+    assert.equal(sshCard.bodies, 1, "SSH has only its command summary");
+    assert.equal(sshCard.details, 0, "unused options are not rendered");
+    assert.equal(sshCard.sources, 1, "the full man page remains accessible");
+    assert.ok(!sshCard.text.includes("Unrelated manual section"));
+    assert.ok(sshCard.height < 250, "SSH stays compact on desktop and mobile");
+  }
+  legacyManual = false;
+  // Back returns to the landing view, Forward to the explanation, and the
+  // wordmark is a home link.
+  await viewport(925);
+  await frames();
+  await navigate("");
+  await waitFor("!!document.querySelector('.cat-tab')");
+  await submit("ls -la /tmp");
+  await waitFor("!document.querySelector('#explain').disabled && !!document.querySelector('#connectors path[data-step]')");
+  await evaluate("scrollTo(0, document.body.scrollHeight)");
+  await evaluate("history.back()");
+  await waitFor("!document.querySelector('#examples').hidden && document.querySelector('#results').hidden");
+  assert.equal(await evaluate("location.search"), "", "Back lands on the landing URL");
+  assert.equal(await evaluate("document.querySelector('#cmd').value"), "", "Back clears the command");
+  assert.equal(await evaluate("scrollY"), 0, "Back lands at the top");
+  await evaluate("history.forward()");
+  await waitFor("!!document.querySelector('#connectors path[data-step]') && !document.querySelector('#results').hidden");
+  await evaluate("document.querySelector('#home-link').click()");
+  await waitFor("!document.querySelector('#examples').hidden && document.querySelector('#results').hidden");
+  assert.equal(await evaluate("document.querySelector('#cmd').value"), "", "the wordmark is a home link");
   failResponse = true;
   await submit("ls");
   await waitFor("!document.querySelector('#explain').disabled");
   assert.equal(await evaluate("document.querySelector('#cards').textContent"), "Test failure");
   assert.equal(await evaluate("document.querySelectorAll('.connectors > *').length"), 0, "errors clear both SVG layers");
   assert.deepEqual(errors, [], "no browser exceptions");
-  console.log("PASS: toolbar first-paint stability, source label/dot and Enter icon across slow refresh, command input restoration, shared-link entrance, continuous route draw, scroll/resize, repeated render, wrapping, mobile, cancellation, reduced motion, browser fallback, errors, keyboard focus");
+  console.log("PASS: toolbar first-paint stability, source label/dot and Enter icon across slow refresh, command input restoration, shared-link entrance, continuous route draw, scroll/resize, repeated render, wrapping, mobile, cancellation, reduced motion, browser fallback, errors, keyboard focus, Back/Forward and wordmark home");
 } finally {
   socket?.close();
   if (chrome && chrome.exitCode === null) {
