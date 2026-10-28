@@ -3,5 +3,7 @@
 // and the external arrow are both paths.
 export const MAN_PAGE_ICON = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4.4C6.7 3.4 4.9 3 2.8 3v8.4c2.1 0 3.9.4 5.2 1.4 1.3-1 3.1-1.4 5.2-1.4V3c-2.1 0-3.9.4-5.2 1.4Z"/><path d="M8 4.4v8.4"/></svg>`;
 export const EXTERNAL_ICON = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.6 3.4H3.4v9.2h9.2V9.4"/><path d="M9.6 3.4h3v3"/><path d="M12.6 3.4 7.6 8.4"/></svg>`;
-export const SNAKE_ICON = `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 36c8 4 19 2 23-4s1-13-7-14-13 3-13 8 8 8 14 5 9-9 7-14-8-7-14-5"/><circle cx="31" cy="14" r="1.3" fill="currentColor" stroke="none"/><path d="M33 12l4-2M33 15l5 1"/></svg>`;
-export const GOPHER_ICON = `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 39c-3-5-4-11-2-16 2-6 14-7 18-1 3 5 2 12-1 17H16Z"/><circle cx="15" cy="16" r="4"/><circle cx="33" cy="16" r="4"/><circle cx="20" cy="24" r="1.4" fill="currentColor" stroke="none"/><circle cx="28" cy="24" r="1.4" fill="currentColor" stroke="none"/><path d="M21 31h6v5h-3v-5M24 31v5"/><path d="M15 29h-4M33 29h4"/></svg>`;
+// Existing Unicode glyphs, not drawn paths. A snake for Python and a beaver
+// for the Go/gopher joke; the OS supplies the artwork.
+export const SNAKE_ICON = "\u{1F40D}";
+export const GOPHER_ICON = "\u{1F9AB}";

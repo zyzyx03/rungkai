@@ -921,9 +921,12 @@ input.neon-frame:focus-visible {
   color: #f7768e;
 }
 .error-mascot {
+  display: grid;
   flex: 0 0 auto;
+  place-items: center;
   width: 2.75rem;
   height: 2.75rem;
-  color: #38bdf8;
+  font-size: 2rem;
+  line-height: 1;
 }
 .error-mascot svg { width: 100%; height: 100%; }
