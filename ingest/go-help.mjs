@@ -72,7 +72,7 @@ function operandsFrom(text, path) {
       if (/^[a-z][a-z0-9_-]*$/i.test(w) && !/^go$/i.test(w) && !out.includes(w)) out.push(w);
     }
   }
-  return out.map((name) => ({ name, desc: "" }));
+  return out.map((name) => ({ name, desc: "", gap: true }));
 }
 
 const made = new Set();
@@ -91,7 +91,12 @@ function visit(path, shortDesc) {
   const { options, values } = optionsFrom(text);
   const addOptions = (extra) => {
     for (const option of extra.options) {
-      if (options.some((o) => o.names.some((n) => option.names.includes(n)))) continue;
+      const current = options.find((o) => o.names.some((n) => option.names.includes(n)));
+      if (current) {
+        if (!current.desc && option.desc) current.desc = option.desc;
+        for (const name of option.names) if (extra.values[name]) values[name] = extra.values[name];
+        continue;
+      }
       options.push(option);
       for (const name of option.names) if (extra.values[name]) values[name] = extra.values[name];
     }
@@ -105,7 +110,7 @@ function visit(path, shortDesc) {
     source: `go help${path.length ? ` ${path.join(" ")}` : ""}`,
     synopsis: shortDesc || /^usage: .*$/m.exec(text)?.[0] || cmd,
     description: text,
-    options,
+    options: options.map((option) => (!option.desc ? { ...option, gap: true } : option)),
     values,
     operands: operandsFrom(text, path),
     clientVersion: version,
