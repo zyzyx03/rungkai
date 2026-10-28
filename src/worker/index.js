@@ -169,10 +169,12 @@ app.post("/api/explain", async (c) => {
   const { body, env: envId, error } = await readBody(c.req.raw);
   if (error) return c.json({ error }, 400);
   const { cmd } = body;
-  const problem = checkText(cmd);
-  if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
+  // A foreign snippet may be multi-line; identify it before the one-liner
+  // character check so the reader gets the language joke, not a U+000A error.
   const foreign = foreignLanguage(cmd);
   if (foreign) return c.json(foreign, 400);
+  const problem = checkText(cmd);
+  if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
 
   // Bump CORPUS_VERSION after re-ingesting, or a stale answer survives for a day.
   const version = c.env.CORPUS_VERSION ?? "1";
@@ -223,10 +225,10 @@ app.post("/api/chat", async (c) => {
   if (messages.length > MAX_MESSAGES) {
     return c.json({ error: `bad request: at most ${MAX_MESSAGES} messages` }, 400);
   }
-  const problem = checkText(cmd);
-  if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
   const foreign = foreignLanguage(cmd);
   if (foreign) return c.json(foreign, 400);
+  const problem = checkText(cmd);
+  if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
   // Only the two roles a conversation has. A caller-supplied system message
   // would sit after the one below and could replace it.
   for (const message of messages) {
@@ -319,10 +321,10 @@ app.post("/api/tldr", async (c) => {
   const { body, env: envId, error } = await readBody(c.req.raw);
   if (error) return c.json({ error }, 400);
   const { cmd } = body;
-  const problem = checkText(cmd);
-  if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
   const foreign = foreignLanguage(cmd);
   if (foreign) return c.json(foreign, 400);
+  const problem = checkText(cmd);
+  if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
   const flagged = looksLikeInjection(cmd);
   if (flagged) c.executionCtx.waitUntil(audit(c, "/api/tldr", flagged, cmd, envId));
   if (!c.env.DEEPSEEK_API_KEY) return c.json({ error: "not configured" }, 503);
@@ -502,10 +504,10 @@ app.on("POST", ["/api/suggest", "/api/change"], async (c) => {
   const problem = checkText(request);
   if (problem) return c.json({ error: `bad request: ${problem}` }, 400);
   // A new command has no command to check; a changed one does.
-  const bad = cmd ? checkText(cmd) : null;
-  if (bad) return c.json({ error: `bad command: ${bad}` }, 400);
   const foreign = cmd ? foreignLanguage(cmd) : null;
   if (foreign) return c.json(foreign, 400);
+  const bad = cmd ? checkText(cmd) : null;
+  if (bad) return c.json({ error: `bad command: ${bad}` }, 400);
   const requestReason = looksLikeInjection(request);
   const cmdReason = cmd ? looksLikeInjection(cmd) : null;
   if (requestReason || cmdReason) {
