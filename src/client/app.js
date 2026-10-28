@@ -184,18 +184,15 @@ async function explain(cmd, env, historyMode = "push") {
       els.brackets.replaceChildren();
       connectorKey = "";
       els.empty.hidden = true;
-      const card = document.createElement("div");
+      const card = document.createElement("p");
       card.className = "error-card";
       if (error.language) {
         const mascot = document.createElement("span");
         mascot.className = "error-mascot";
-        mascot.innerHTML = error.language === "python" ? SNAKE_ICON : GOPHER_ICON;
-        card.append(mascot);
+        mascot.textContent = error.language === "python" ? SNAKE_ICON : GOPHER_ICON;
+        card.append(mascot, " ");
       }
-      const copy = document.createElement("p");
-      copy.className = "text-[14px] leading-relaxed";
-      copy.textContent = error.message;
-      card.append(copy);
+      card.append(error.message);
       els.cards.replaceChildren(card);
     });
   } finally {
