@@ -6,6 +6,7 @@ import { resolveCommands } from "../lib/wrap.js";
 import { retrieve } from "../lib/retrieve.js";
 import { candidateTools } from "../lib/candidates.js";
 import { chatAuthorized } from "../lib/chat-auth.js";
+import { audit, looksLikeInjection } from "../lib/audit.js";
 import { resolveEnv } from "../lib/envs.js";
 import { checkText, readBody, MAX_CMD, MAX_MESSAGES, MAX_MESSAGE } from "../lib/input.js";
 import { commandHash } from "../lib/cache.js";
@@ -61,6 +62,7 @@ const limitFrom = (c, name, fallback) => Number(c.env[name] ?? fallback) || fall
 function rateLimited(c, retryAfter) {
   const seconds = Math.max(1, Math.ceil(retryAfter));
   c.header("Retry-After", String(seconds));
+  c.executionCtx.waitUntil(audit(c, c.req.path, "rate-limited"));
   return c.json({ error: "slow down", retryAfter: seconds }, 429);
 }
 
@@ -187,10 +189,13 @@ app.post("/api/chat", async (c) => {
   // would sit after the one below and could replace it.
   for (const message of messages) {
     if (!message || typeof message !== "object" || (message.role !== "user" && message.role !== "assistant")) {
+      c.executionCtx.waitUntil(audit(c, "/api/chat", "invalid-role", message?.content ?? "", envId));
       return c.json({ error: "bad message: each needs a user or assistant role" }, 400);
     }
     const bad = checkText(message.content, MAX_MESSAGE);
     if (bad) return c.json({ error: `bad message: ${bad}` }, 400);
+    const flagged = looksLikeInjection(message.content);
+    if (flagged) c.executionCtx.waitUntil(audit(c, "/api/chat", flagged, message.content, envId));
   }
 
   const parsed = await parseOneLiner(cmd);
@@ -274,6 +279,8 @@ app.post("/api/tldr", async (c) => {
   const { cmd } = body;
   const problem = checkText(cmd);
   if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
+  const flagged = looksLikeInjection(cmd);
+  if (flagged) c.executionCtx.waitUntil(audit(c, "/api/tldr", flagged, cmd, envId));
   if (!c.env.DEEPSEEK_API_KEY) return c.json({ error: "not configured" }, 503);
 
   // The same command always wants the same sentence, so pay for it once. The
@@ -453,6 +460,11 @@ app.on("POST", ["/api/suggest", "/api/change"], async (c) => {
   // A new command has no command to check; a changed one does.
   const bad = cmd ? checkText(cmd) : null;
   if (bad) return c.json({ error: `bad command: ${bad}` }, 400);
+  const requestReason = looksLikeInjection(request);
+  const cmdReason = cmd ? looksLikeInjection(cmd) : null;
+  if (requestReason || cmdReason) {
+    c.executionCtx.waitUntil(audit(c, c.req.path, requestReason || cmdReason, requestReason ? request : cmd, envId));
+  }
   return recommend(c, { cmd, request, envId });
 });
 
