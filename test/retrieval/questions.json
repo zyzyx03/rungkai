@@ -1,0 +1,451 @@
+[
+  {
+    "q": "what does --schema-only do in pg_dump",
+    "tools": [
+      "pg_dump"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "pg_dump"
+    ],
+    "text": [
+      "--schema-only"
+    ],
+    "exact": true
+  },
+  {
+    "q": "run a single SQL command with psql",
+    "tools": [
+      "psql"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "psql"
+    ],
+    "text": [
+      "-c"
+    ]
+  },
+  {
+    "q": "summarize a PostgreSQL cluster",
+    "tools": [
+      "pt-pg-summary"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "pt-pg-summary"
+    ]
+  },
+  {
+    "q": "check for duplicate and unused indexes in MongoDB",
+    "tools": [
+      "pt-mongodb-index-check"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "pt-mongodb-index-check"
+    ],
+    "text": [
+      "--all-collections"
+    ]
+  },
+  {
+    "q": "analyze a MySQL slow query log",
+    "tools": [
+      "pt-query-digest"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "pt-query-digest"
+    ],
+    "text": [
+      "--since"
+    ]
+  },
+  {
+    "q": "find files older than 30 days and delete them",
+    "tools": [
+      "find"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "find"
+    ],
+    "text": [
+      "-mtime"
+    ]
+  },
+  {
+    "q": "copy files over ssh preserving permissions",
+    "tools": [
+      "rsync"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "rsync"
+    ]
+  },
+  {
+    "q": "show listening ports with process names",
+    "tools": [
+      "ss"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "ss"
+    ],
+    "text": [
+      "-p"
+    ]
+  },
+  {
+    "q": "follow a systemd service log",
+    "tools": [
+      "journalctl"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "journalctl"
+    ],
+    "text": [
+      "-f"
+    ]
+  },
+  {
+    "q": "tar extract with gzip",
+    "tools": [
+      "tar"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "tar"
+    ],
+    "text": [
+      "-x"
+    ]
+  },
+  {
+    "q": "ssh local port forwarding",
+    "tools": [
+      "ssh"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "ssh"
+    ],
+    "text": [
+      "-L"
+    ]
+  },
+  {
+    "q": "checksum MySQL table data between primary and replica",
+    "tools": [
+      "pt-table-checksum"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "pt-table-checksum"
+    ],
+    "text": [
+      "--databases"
+    ]
+  },
+  {
+    "q": "archive old rows from a MySQL table",
+    "tools": [
+      "pt-archiver"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "pt-archiver"
+    ],
+    "text": [
+      "--where"
+    ]
+  },
+  {
+    "q": "gcc treat warnings as errors",
+    "tools": [
+      "gcc"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "gcc"
+    ],
+    "text": [
+      "-Werror"
+    ]
+  },
+  {
+    "q": "find duplicate indexes on a mysql table",
+    "fresh": true,
+    "env": "all",
+    "pages": [
+      "pt-duplicate-key-checker"
+    ]
+  },
+  {
+    "q": "list files bigger than 100MB",
+    "fresh": true,
+    "env": "all",
+    "pages": [
+      "find"
+    ]
+  },
+  {
+    "q": "can percona toolkit detect postgres locks",
+    "fresh": true,
+    "env": "all",
+    "pages": [
+      "pt-pg-summary",
+      "psql"
+    ]
+  },
+  {
+    "q": "summarize a mongodb cluster",
+    "fresh": true,
+    "env": "all",
+    "pages": [
+      "pt-mongodb-summary"
+    ]
+  },
+  {
+    "q": "run a sql query against postgres",
+    "fresh": true,
+    "env": "all",
+    "pages": [
+      "psql",
+      "pt-pg-summary"
+    ]
+  },
+  {
+    "q": "tail a log file",
+    "fresh": true,
+    "env": "all",
+    "pages": [
+      "tail"
+    ]
+  },
+  {
+    "q": "what does --all-collections do in pt-mongodb-index-check",
+    "tools": [
+      "pt-mongodb-index-check"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "pt-mongodb-index-check"
+    ],
+    "text": [
+      "--all-collections"
+    ],
+    "exact": true
+  },
+  {
+    "q": "what does --since do in pt-query-digest",
+    "tools": [
+      "pt-query-digest"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "pt-query-digest"
+    ],
+    "text": [
+      "--since"
+    ],
+    "exact": true
+  },
+  {
+    "q": "what does -mtime do in find",
+    "tools": [
+      "find"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "find"
+    ],
+    "text": [
+      "-mtime"
+    ],
+    "exact": true
+  },
+  {
+    "q": "what does -Werror do in gcc",
+    "tools": [
+      "gcc"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "gcc"
+    ],
+    "text": [
+      "-Werror"
+    ],
+    "exact": true
+  },
+  {
+    "q": "what does --where do in pt-archiver",
+    "tools": [
+      "pt-archiver"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "pt-archiver"
+    ],
+    "text": [
+      "--where"
+    ],
+    "exact": true
+  },
+  {
+    "q": "what does -p do in ss",
+    "tools": [
+      "ss"
+    ],
+    "env": "ubuntu/24.04",
+    "pages": [
+      "ss"
+    ],
+    "text": [
+      "-p"
+    ],
+    "exact": true
+  },
+  {
+    "q": "macam mana nak cari port yang tengah listen",
+    "tools": [
+      "ss"
+    ],
+    "env": "all",
+    "pages": [
+      "ss"
+    ],
+    "text": [
+      "-p"
+    ],
+    "malay": true
+  },
+  {
+    "q": "senaraikan fail yang lebih besar daripada 100MB",
+    "tools": [
+      "find"
+    ],
+    "env": "all",
+    "pages": [
+      "find"
+    ],
+    "text": [
+      "-size"
+    ],
+    "malay": true
+  },
+  {
+    "q": "tunjuk log servis nginx",
+    "tools": [
+      "journalctl"
+    ],
+    "env": "all",
+    "pages": [
+      "journalctl"
+    ],
+    "text": [
+      "-u"
+    ],
+    "malay": true
+  },
+  {
+    "q": "cari fail lama 30 hari dan buang",
+    "tools": [
+      "find"
+    ],
+    "env": "all",
+    "pages": [
+      "find"
+    ],
+    "text": [
+      "-mtime"
+    ],
+    "malay": true
+  },
+  {
+    "q": "semak indeks pendua dalam mongodb",
+    "tools": [
+      "pt-mongodb-index-check"
+    ],
+    "env": "all",
+    "pages": [
+      "pt-mongodb-index-check"
+    ],
+    "text": [
+      "--all-collections"
+    ],
+    "malay": true
+  },
+  {
+    "q": "tunjuk penggunaan disk",
+    "tools": [
+      "df"
+    ],
+    "env": "all",
+    "pages": [
+      "df"
+    ],
+    "text": [
+      "-h"
+    ],
+    "malay": true
+  },
+  {
+    "q": "tunjuk memori yang digunakan",
+    "tools": [
+      "free"
+    ],
+    "env": "all",
+    "pages": [
+      "free"
+    ],
+    "text": [
+      "-h"
+    ],
+    "malay": true
+  },
+  {
+    "q": "berapa lama replikasi mysql tertinggal",
+    "tools": [
+      "pt-heartbeat"
+    ],
+    "env": "all",
+    "pages": [
+      "pt-heartbeat"
+    ],
+    "malay": true
+  },
+  {
+    "q": "cari fail bernama config.yaml",
+    "tools": [
+      "find"
+    ],
+    "env": "all",
+    "pages": [
+      "find"
+    ],
+    "text": [
+      "-name"
+    ],
+    "malay": true
+  },
+  {
+    "q": "senarai proses yang menggunakan port 80",
+    "tools": [
+      "ss",
+      "lsof"
+    ],
+    "env": "all",
+    "pages": [
+      "ss"
+    ],
+    "text": [
+      "-p"
+    ],
+    "malay": true
+  }
+]

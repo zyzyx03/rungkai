@@ -3,7 +3,7 @@
 //   CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... node ingest/embed.mjs .corpus/noble/pages
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { chunksOf } from "./chunks.mjs";
+import { chunksOf, MAX_CHUNKS } from "./chunks.mjs";
 
 const dir = process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? ".corpus/noble/pages";
 const force = process.argv.includes("--force");
@@ -53,8 +53,9 @@ async function embeddingsFor(texts) {
 for (const file of files) {
   const path = join(dir, file);
   const page = JSON.parse(readFileSync(path, "utf8"));
-  // A page already embedded is left alone: re-running must not pay twice.
-  if (!force && page.chunks?.length) {
+  // A page already embedded at the current chunk cap is left alone: a
+  // resumable run must not pay twice for pages it already finished.
+  if (!force && page.chunkCap === MAX_CHUNKS) {
     for (const chunk of page.chunks) if (chunk.embedding) vectors.set(chunk.text, chunk.embedding);
     done += 1;
     continue;
@@ -68,7 +69,7 @@ for (const file of files) {
     const chunks = [];
     const embedded = await embeddingsFor(texts);
     texts.forEach((text, i) => chunks.push({ text, embedding: embedded[i] }));
-    writeFileSync(path, JSON.stringify({ ...page, chunks }));
+    writeFileSync(path, JSON.stringify({ ...page, chunks, chunkCap: MAX_CHUNKS }));
     done += 1;
   } catch (error) {
     failed += 1;

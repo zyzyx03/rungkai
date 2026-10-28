@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { optionArg, optionValues, synopsisFacts, operandDocs } from "../ingest/operands.mjs";
+import { optionArg, optionValues, synopsisFacts, operandDocs, commandEntries } from "../ingest/operands.mjs";
 
 // mdoc: the value is an argument element.
 const mdoc = `
@@ -109,4 +109,14 @@ test("a marked operand definition wins over general introductory mentions", () =
     <p class="Pp">If a <i>command</i> is specified, it is executed on the remote host. Further source detail.</p>`;
   assert.equal(operandDocs(html, ["command"]).command,
     "If a command is specified, it is executed on the remote host. Further source detail.");
+});
+
+test("dnf-style Command: entries become subcommands", () => {
+  const html = `<h1 class="Sh" id="COMMANDS">COMMANDS</h1>
+<pre>Command: <b>install</b></pre><p class="Pp">Install packages.</p>
+<pre>Command: <b>check-update</b></pre><p class="Pp">Check for updates.</p>`;
+  assert.deepEqual(commandEntries(html), [
+    { name: "install", desc: "Install packages." },
+    { name: "check-update", desc: "Check for updates." },
+  ]);
 });

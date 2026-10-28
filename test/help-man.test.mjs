@@ -21,3 +21,20 @@ test("--man fills an empty NAME line", () => {
   const out = run(["--man", "--name", "pt-x", "--desc", "Does x."], '.TH pt-x 1\n.SH "NAME"\npt-x\n.SH "SYNOPSIS"\n');
   assert.match(out, /\.SH "NAME"\npt-x \\- Does x\./);
 });
+
+test("an option without a description stays a gap, not an alias of the next", () => {
+  const out = run(
+    ["--name", "pt-x", "--desc", "Does x."],
+    "Usage: pt-x\n\nFlags:\n      --version\n      --all   Do all.\n",
+  );
+  assert.ok(out.indexOf("--all") < out.indexOf("--version"), "the described option comes first");
+  assert.match(out, /--version\\fR\n\n?$/);
+});
+
+test("--[no-]flag is named in both spellings", () => {
+  const out = run(
+    ["--name", "pt-x", "--desc", "Does x."],
+    "Usage: pt-x\n\nFlags:\n      --[no-]version-check   Check.\n",
+  );
+  assert.match(out, /--version-check, --no-version-check/);
+});

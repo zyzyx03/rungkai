@@ -8,7 +8,7 @@ import { mkdirSync, writeFileSync, readdirSync, readFileSync, existsSync, rmSync
 import { join, basename, resolve } from "node:path";
 import { synopsisOptions } from "./synopsis.mjs";
 import { parseOptions, proseOptions } from "./flags.mjs";
-import { optionValues, synopsisFacts, operandDocs, definitionEntries, text as plain } from "./operands.mjs";
+import { optionValues, synopsisFacts, operandDocs, definitionEntries, text as plain, commandEntries } from "./operands.mjs";
 
 const argv = process.argv.slice(2);
 let release = "noble";
@@ -263,12 +263,25 @@ for (const dir of ["man1", "man8"]) {
         option.gap = true;
       }
     }
-    const docs = operandDocs(html, facts.operands);
-    const operands = facts.operands
+    // Commands are operands too, but a named one: "install" is documented by
+    // the COMMANDS section, not by the positional order of the synopsis.
+    const commands = commandEntries(html);
+    const commandDocs = new Map(commands.map((command) => [command.name, command.desc]));
+    const operandNames = [...new Set([...facts.operands, ...commands.map((command) => command.name)])];
+    const docs = operandDocs(html, operandNames);
+    const operands = operandNames
       // A symbolic mode expanded into attribute options is no longer a
       // positional argument; the next word is the file it applies to.
       .filter((operand) => operand !== "mode" || !options.some((o) => o.names.some((n) => n.startsWith("+"))))
-      .map((operand) => ({ name: operand, desc: docs[operand] ?? "", ...(!docs[operand] ? { gap: true } : {}) }));
+      .map((operand) => {
+        const desc = commandDocs.get(operand) ?? docs[operand] ?? "";
+        return {
+          name: operand,
+          desc,
+          ...(commandDocs.has(operand) ? { command: true } : {}),
+          ...(!desc ? { gap: true } : {}),
+        };
+      });
 
     const page = {
       cmd: tool,

@@ -175,10 +175,10 @@ test("an operand the page names by that name is that operand", () => {
   assert.equal(cardOf(result, "command").title, "command");
 });
 
-test("a word with no operand documentation gets a gap", () => {
+test("a word the page does not name is plain, not a gap", () => {
   const result = explain("ssh host", sshParsed([{ text: "host", span: [4, 8] }]), { ssh: { synopsis: "s", source: "u" } }, "el9");
-  assert.equal(cardOf(result, "host").desc, null);
-  assert.equal(result.segments.find((s) => s.text === "host").gap, true);
+  assert.equal(result.segments.find((s) => s.text === "host").anchor, null);
+  assert.notEqual(result.segments.find((s) => s.text === "host").gap, true);
 });
 
 test("a flag the page does not list is not mistaken for an operand", () => {
@@ -203,4 +203,34 @@ test("a subcommand page covers the subcommand words", () => {
   assert.equal(tool.text, "docker run");
   assert.equal(cardOf(result, "run"), undefined);
   assert.equal(cardOf(result, "nginx").title, "destination");
+});
+
+test("a documented subcommand gets its own card; the package name stays plain", () => {
+  const page = {
+    synopsis: "DNF Command Reference",
+    source: "https://example.test/dnf",
+    options: [{ names: ["-y", "--assumeyes"], desc: "answer yes" }],
+    operands: [
+      { name: "install", desc: "Install packages.", command: true },
+      { name: "remove", desc: "Remove packages.", command: true },
+    ],
+  };
+  const parsed = {
+    commands: [{
+      name: "dnf",
+      nameSpan: [0, 3],
+      args: [
+        { text: "install", span: [4, 11] },
+        { text: "-y", span: [12, 14] },
+        { text: "httpd", span: [15, 20] },
+      ],
+    }],
+    syntax: [],
+  };
+  const result = explain("dnf install -y httpd", parsed, { dnf: page }, "el9");
+  const byText = (text) => result.segments.find((s) => s.text === text);
+  assert.equal(byText("install").anchor.desc, "Install packages.");
+  assert.notEqual(byText("install").gap, true);
+  assert.equal(byText("httpd").anchor, null);
+  assert.equal(byText("-y").anchor.desc, "answer yes");
 });

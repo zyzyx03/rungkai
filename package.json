@@ -14,7 +14,13 @@
     "test:promptfoo": "bash test/promptfoo/run.sh",
     "test:redteam": "bash test/promptfoo/run-redteam.sh",
     "test:promptfoo:all": "bash test/promptfoo/run-all.sh",
-    "test:all": "npm test && npm run test:promptfoo:all"
+    "test:all": "npm test && npm run test:promptfoo:all",
+    "eval:retrieval": "node test/retrieval/eval.mjs",
+    "corpus:index": "node ingest/index.mjs",
+    "corpus:prune": "node ingest/prune.mjs",
+    "embed:local": "node ingest/embed-local.mjs",
+    "eval:retrieval:local": "node test/retrieval/eval.mjs --local",
+    "corpus:kubectl": "node ingest/kubectl-help.mjs"
   },
   "dependencies": {
     "astro": "^7.4.2",
@@ -23,6 +29,7 @@
     "web-tree-sitter": "^0.27.1"
   },
   "devDependencies": {
+    "@huggingface/transformers": "^4.3.1",
     "@unocss/astro": "^66.11.0",
     "unocss": "^66.11.0",
     "wrangler": "^4"

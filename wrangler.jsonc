@@ -3,6 +3,13 @@
   "name": "rungkai",
   "main": "src/worker/index.js",
   "compatibility_date": "2026-10-01",
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "invocation_logs": true,
+      "head_sampling_rate": 1
+    }
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
@@ -26,6 +33,8 @@
   "vars": {
     "DEEPSEEK_MODEL": "deepseek-flash",
     "DAILY_BUDGET_MICRO": "200000",
-    "CORPUS_VERSION": "35"
+    "CORPUS_VERSION": "42",
+    "EMBED_POOLING": "mean",
+    "EMBED_MODEL": "@cf/qwen/qwen3-embedding-0.6b"
   }
 }

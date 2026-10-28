@@ -433,3 +433,27 @@ export function text(html) {
 function escapeRe(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+// The commands a tool documents in its own COMMANDS section. dnf/yum write
+// "Command: install" in a <pre> above the prose; other pages use a definition
+// list. Both become one entry per command, with the manual's own words.
+export function commandEntries(html) {
+  const out = [];
+  const seen = new Set();
+  const add = (name, desc) => {
+    const cleanName = text(name).replace(/\s+/g, " ").trim().split(/\s+/)[0].replace(/[.,;:]+$/, "");
+    const cleanDesc = text(desc).replace(/\s+/g, " ").trim();
+    if (!/^[A-Za-z0-9][A-Za-z0-9._+-]*$/.test(cleanName) || !cleanDesc || seen.has(cleanName)) return;
+    seen.add(cleanName);
+    out.push({ name: cleanName, desc: cleanDesc });
+  };
+  for (const body of sections(html, ["COMMANDS", "SUBCOMMANDS", "COMMAND"])) {
+    // dnf/yum: <pre>Command: <b>install</b></pre> followed by the prose.
+    for (const m of body.matchAll(/<pre[^>]*>\s*Command:\s*([\s\S]*?)<\/pre>([\s\S]*?)(?=<pre[^>]*>\s*Command:|<h2|<h1|$)/gi)) {
+      add(m[1], m[2]);
+    }
+    // Other manuals list the commands as a definition list.
+    for (const [head, desc] of definitionEntries(body)) add(head, desc);
+  }
+  return out;
+}

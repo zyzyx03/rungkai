@@ -52,7 +52,7 @@ plain-English summary, the recommender and the chat.
 | `src/lib/explain.js` | Turns the parse plus corpus pages into renderable segments. |
 | `src/lib/pages.js` | Matches an argument to a man-page option entry, including bundled flags like `-zcf`. |
 | `src/lib/wrap.js` | Finds the command a command runs in turn: `sudo ss`, `find -exec rm`. |
-| `src/lib/retrieve.js` | Cosine over only the pages of the tools the command actually names. |
+| `src/lib/retrieve.js` | Cosine over only the pages of the tools the command names; duplicate excerpts are read once, and a flag the question names is taken straight from the page. |
 | `src/worker/index.js` | The Hono Worker: `/api/explain`, `/api/tldr`, `/api/suggest` (alias `/api/change`), `/api/chat`. |
 | `src/worker/budget.js` | A Durable Object holding the daily model budget. |
 | `src/worker/ratelimit.js` | A Durable Object per IP and limiter holding the token bucket. |
@@ -73,7 +73,11 @@ The model is DeepSeek, behind a budget and per-IP token buckets the Durable Obje
 enforce.
 
 Nothing is stored: no accounts, no history, no saved commands. A permalink
-carries the command and the environment in the URL.
+carries the command and the environment in the URL. The model endpoints have
+one exception: an input that matches a prompt-injection heuristic is written
+to Workers Logs as a truncated excerpt with a salted, hashed address and the
+time, for the log retention window. Ordinary commands and questions are never
+logged.
 
 By [Fauzuwan Nazri](https://fauzuwan.my). MIT licensed — see
 [Licence](#licence).
@@ -277,13 +281,31 @@ skipped; `--force` re-embeds them. Without this pass, chat and the recommender
 still answer — the prompt says no excerpts were retrieved — but nothing is
 grounded in the corpus.
 
+A corpus can also be embedded locally, without the Workers AI quota:
+
+```sh
+npm install --save-dev @huggingface/transformers
+node ingest/embed-local.mjs .corpus/noble/pages
+```
+
+It runs the same bge-small weights with **mean pooling**; that matches Workers
+AI's vectors at ~0.96–0.999 cosine. CLS pooling is ~0.90 and would rank
+differently. Runtime question embeddings still use the Worker's AI binding, so
+one small call per chat or suggestion remains.
+
+The Worker's `EMBED_POOLING` variable must match the corpus. `mean` is
+Cloudflare's default; `cls` is the model-native mode Cloudflare recommends.
+`ingest/embed-http.mjs` embeds through the LAN bge-small server (CLS);
+`embed-local.mjs --cls` is the CPU fallback; `npm run eval:retrieval -- --pooling cls`
+evaluates the CLS corpus. Never mix the two pooling modes.
+
 ### The suggestion index
 
 A suggestion starts with no command, so retrieval has no tools to restrict
 itself to. `ingest/index.mjs` writes one synopsis per page (`_index.json`,
 uploaded with the corpus); the worker scores it against the request and reads
-the best pages before calling the model. Run it after the shared pages are
-copied and before the upload:
+the best pages before calling the model. `upload.mjs` rebuilds it before every
+upload; run it alone when you want the index without a deploy:
 
 ```sh
 node ingest/index.mjs .corpus/noble/pages
@@ -316,6 +338,16 @@ node ingest/export.mjs ubuntu/24.04 ./pages --remote
 full corpus. `--remote` uses the bucket's S3 API and needs
 `CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` in the
 environment.
+
+`upload.mjs` rebuilds `_index.json` (the suggestion index) and `_meta.json`
+(the build manifest) before it sends anything, so they cannot drift from the
+corpus. `--delete` mirrors the directory into that environment's prefix and
+removes keys the corpus no longer has; it is off by default because a wrong
+directory would empty the bucket.
+
+`node ingest/prune.mjs .corpus/<env>/pages` drops pages no command can reach
+(names `pagePath` rejects) and pages with no synopsis, description, options or
+operands — they only add noise to search.
 
 After changing a corpus, **bump `CORPUS_VERSION` in `wrangler.jsonc`** — it is
 part of the explainer cache key, so without the bump a stale answer survives
@@ -384,6 +416,19 @@ node ingest/ingest.mjs noble        # build a corpus
 node test/make-fixture.mjs           # refresh the sample from it
 npm test
 ```
+
+### Retrieval eval
+
+`npm run eval:retrieval` scores the actual `retrieve()` path: it reads the
+local corpora, embeds each question with the same model the Worker uses, and
+reports hits@4 against an expected page and flag. It needs a built corpus and
+`CLOUDFLARE_ACCOUNT_ID` / `CF_WORKERS_AI_TOKEN` in `.env`; it is not part of
+`npm test` because it talks to Workers AI.
+
+Questions live in `test/retrieval/questions.json`. A question names its tools
+when it is about a command, or sets `"fresh": true` to exercise the suggestion
+index. Change the corpus, the chunker or the retrieval threshold, then run it
+before and after: the number is the point.
 
 ### Model and prompt-injection tests
 

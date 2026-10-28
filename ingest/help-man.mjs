@@ -40,6 +40,11 @@ const synopsis = (lines.find((line) => /^Usage:\s+/.test(line)) ?? "").replace(/
 // label starts with a backslash (bold), so its dash is safe.
 const body = (text) => text.replace(/\\/g, "\\\\").replace(/(^|\n)([-.'])/g, "$1\\&$2");
 const label = (text) => text.replace(/\\/g, "\\\\");
+// --[no-]flag is two flags; the corpus names both so either spelling matches.
+const names = (name) => {
+  const m = /^--\[(?:no-|no)\](.+)$/.exec(name);
+  return m ? [`--${m[1]}`, `--no-${m[1]}`] : [name];
+};
 
 const entries = [];
 let current = null;
@@ -54,7 +59,7 @@ for (const raw of lines) {
   }
   if (commands) continue;
   if (/^(Flags|Options|Global flags):?$/.test(trimmed)) continue;
-  const flag = /^(\s*)((?:-[A-Za-z0-9?](?:,\s*)?)?--[A-Za-z0-9][\w.-]*)([\s\S]*)$/.exec(line);
+  const flag = /^(\s*)((?:-[A-Za-z0-9?](?:,\s*)?)?--(?:\[no-\]|\[no\])?[A-Za-z0-9][\w.-]*)([\s\S]*)$/.exec(line);
   if (flag) {
     const rest = flag[3];
     let text = "";
@@ -86,7 +91,11 @@ const out = [
   body(desc),
   ".SH OPTIONS",
 ];
-for (const entry of entries) {
-  out.push(".TP", `\\fB${label(entry.names.join(", "))}\\fR`, body(entry.text));
+// The ingester reads an empty definition followed by a described one as two
+// usage lines for the same option. A flag the help does not describe is a gap,
+// not an alias, so the empty ones go last.
+const ordered = [...entries.filter((entry) => entry.text), ...entries.filter((entry) => !entry.text)];
+for (const entry of ordered) {
+  out.push(".TP", `\\fB${label(entry.names.flatMap(names).join(", "))}\\fR`, body(entry.text));
 }
 process.stdout.write(`${out.join("\n")}\n`);

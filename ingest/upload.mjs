@@ -1,13 +1,26 @@
-// Push one Corpus to R2. node ingest/upload.mjs ubuntu/24.04 .corpus/noble/pages [--local]
+// Push one Corpus to R2. node ingest/upload.mjs ubuntu/24.04 .corpus/noble/pages [--local] [--delete]
+// --delete mirrors the directory into that environment prefix (S3 path only).
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { writeIndex } from "./index.mjs";
 
 const envId = process.argv[2] ?? "ubuntu/24.04";
 const dir = process.argv[3] ?? ".corpus/noble/pages";
 const local = process.argv.includes("--local");
+const del = process.argv.includes("--delete");
 const wrangler = "node_modules/.bin/wrangler";
+
+// The index and the manifest describe what is about to be uploaded, so they
+// are rebuilt here and cannot drift from the corpus.
+const pageCount = readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("_")).length;
+const indexed = writeIndex(dir);
+writeFileSync(
+  join(dir, "_meta.json"),
+  JSON.stringify({ built: new Date().toISOString(), pages: pageCount, indexed, embedding: process.env.EMBED_MODEL ?? "@cf/baai/bge-small-en-v1.5" }),
+);
 const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+if (local && del) console.warn("--delete applies to the S3 path only");
 
 const BUCKET = "rungkai-corpus";
 
@@ -61,6 +74,7 @@ if (useS3) {
       `${dir}/`,
       `s3://${BUCKET}/${envId}/`,
       "--only-show-errors",
+      ...(del ? ["--delete"] : []),
       "--endpoint-url",
       `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
     ],

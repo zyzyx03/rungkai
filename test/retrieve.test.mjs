@@ -74,3 +74,43 @@ test("at most four excerpts are handed to the model", async () => {
   };
   assert.equal((await retrieve(env, ["ubuntu/24.04"], ["tar"], "q")).length, 4);
 });
+
+test("the same excerpt from two corpora is read once", async () => {
+  const chunk = { text: "same words", embedding: [1, 0] };
+  const env = {
+    AI: { run: async () => ({ data: [[1, 0]] }) },
+    CORPUS: { get: async () => ({ json: async () => ({ chunks: [chunk] }) }) },
+  };
+  const docs = await retrieve(env, ["ubuntu/24.04", "el9"], ["tar"], "q");
+  assert.equal(docs.length, 1);
+});
+
+test("a flag named in the question comes from the page itself", async () => {
+  const env = {
+    AI: { run: async () => ({ data: [[1, 0]] }) },
+    CORPUS: {
+      get: async () => ({
+        json: async () => ({
+          chunks: [{ text: "synopsis", embedding: [1, 0] }],
+          options: [{ names: ["--schema-only"], desc: "Dump only the schema." }],
+        }),
+      }),
+    },
+  };
+  const docs = await retrieve(env, ["ubuntu/24.04"], ["pg_dump"], "what does --schema-only do?");
+  assert.equal(docs[0].text, "--schema-only: Dump only the schema.");
+  assert.equal(docs[0].score, 1);
+});
+
+test("the question embedding uses the pooling the corpus was built with", async () => {
+  let options;
+  const env = {
+    AI: { run: async (_model, opts) => { options = opts; return { data: [[1, 0]] }; } },
+    CORPUS: { get: async () => page([{ text: "x", embedding: [1, 0] }]) },
+  };
+  await retrieve(env, ["ubuntu/24.04"], ["tar"], "q");
+  assert.equal(options.pooling, "mean");
+  env.EMBED_POOLING = "cls";
+  await retrieve(env, ["ubuntu/24.04"], ["tar"], "q");
+  assert.equal(options.pooling, "cls");
+});

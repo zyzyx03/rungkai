@@ -184,7 +184,10 @@ export function explain(cmd, parsed, pages, envId) {
       }
       const operands = page?.operands ?? [];
       const named = operands.find((o) => o.name === arg.text);
-      const operand = named ?? operands[Math.min(operandAt, operands.length - 1)];
+      // A command is a named operand, not a positional one: the package name
+      // after "dnf install" must not inherit the next command's prose.
+      const positional = operands.filter((o) => !o.command);
+      const operand = named ?? positional[Math.min(operandAt, positional.length - 1)];
       if (!named) operandAt++;
       pieces.push({
         kind: "operand",
@@ -194,8 +197,10 @@ export function explain(cmd, parsed, pages, envId) {
         tool: label,
         // Literal absolute paths stay plain; an undocumented operand must
         // never borrow the command's prose as its own definition.
-        anchor: arg.text.startsWith("/") ? null
-          : { key: `op:${label}:${operand?.name ?? "?"}`, title: operand?.name ?? arg.text, desc: operand?.desc ?? null, url: cite.url, env: cite.env, section: cite.section },
+        // An argument the page does not name is plain, not a gap: a package
+        // name is not documentation the manual failed to write.
+        anchor: arg.text.startsWith("/") || (!named && !operand) ? null
+          : { key: `op:${label}:${operand.name}`, title: operand.name, desc: operand.desc, url: cite.url, env: cite.env, section: cite.section },
       });
     }
   }

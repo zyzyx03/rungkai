@@ -1,8 +1,10 @@
 // The text a page offers retrieval: its own prose, and one entry per
 // documented option or operand. Short chunks retrieve precisely — a question
-// about one flag should not have to out-rank the whole page to be found.
+// about one flag should not have to out-rank the whole page to be found. The
+// cap keeps pathological pages (gcc names 3,274 options) from becoming a
+// multi-megabyte document; retrieve() still injects a flag the reader names.
 const MAX_CHARS = 800;
-const MAX_CHUNKS = 12;
+export const MAX_CHUNKS = 128;
 
 export function chunksOf(page) {
   const out = [];
