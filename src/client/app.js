@@ -1414,6 +1414,24 @@ addEventListener("keydown", (event) => {
   if (event.key === "Escape") setEnvOpen(false);
 });
 
+/* Warm the Worker's per-colo response cache before the click. The prefetch is
+   fire-and-forget: it never owns explainRequest, never renders and never
+   aborts the answer for a command the reader actually chose. */
+const prefetched = new Set();
+function prefetchExample(target) {
+  const cmd = target.dataset?.cmd;
+  if (!cmd) return;
+  const env = target.dataset.env ?? state.env;
+  const key = `${env}\0${cmd}`;
+  if (prefetched.has(key)) return;
+  prefetched.add(key);
+  fetch("/api/explain", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ cmd, env }),
+  }).catch(() => {});
+}
+
 /* One handler for every example, whether it was the command text or the
    arrow beside it. */
 function runExample(target) {
@@ -1427,10 +1445,22 @@ function runExample(target) {
 }
 
 for (const link of document.querySelectorAll("[data-cmd]")) {
+  link.addEventListener("pointerenter", () => prefetchExample(link), { passive: true });
+  link.addEventListener("focus", () => prefetchExample(link));
   link.addEventListener("click", (event) => {
     event.preventDefault();
     runExample(link);
   });
+}
+
+// The first visible example is the one most likely to be clicked on a phone,
+// where there is no hover to start the prefetch.
+const firstSample = document.querySelector('.cat-panel:not([hidden]) [data-cmd]');
+if (firstSample) {
+  const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 800));
+  idle(() => {
+    if (!els.examples.hidden) prefetchExample(firstSample);
+  }, { timeout: 2500 });
 }
 
 /* The category tabs: one panel at a time, and the tablist stays a tablist. */
