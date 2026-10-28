@@ -57,3 +57,19 @@ test("a settled stream charges usage, the estimate when only content arrived, an
   assert.equal(settledCost(est, null, false, 0.15, 0.6), 0);
   assert.equal(settledCost(est, undefined, true, 0.15, 0.6), est);
 });
+
+test("a pre-reservation settles to the estimate and can be refunded before the call", () => {
+  const balance = 5000;
+  const reserve = 600;
+  const taken = take({ micro: balance, at: 0 }, reserve, 0, CAP, RATE);
+  assert.equal(taken.ok, true);
+
+  // Retrieval succeeded: settle the reservation down to the real estimate.
+  assert.equal(adjust(taken.bucket, reserve - 450, 0, CAP).micro, balance - 450);
+
+  // Retrieval failed: put the reservation back.
+  assert.equal(adjust(taken.bucket, reserve, 0, CAP).micro, balance);
+
+  // An estimate above the reservation carries the difference as debt.
+  assert.equal(adjust(taken.bucket, reserve - 800, 0, CAP).micro, balance - 800);
+});

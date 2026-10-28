@@ -23,6 +23,9 @@ const OUT_RATE = 0.6;
 // What an answer may spend on output. The budget reservation and the request's
 // max_tokens use the same number, so a long answer cannot outrun the bucket.
 const ANSWER_TOKENS = 600;
+// Reserve before retrieval: the query embedding is paid work, and an exhausted
+// budget must stop it before it happens, not refund it after a 429.
+const SUGGEST_RESERVE = ((MAX_CMD * 2 + 4 * 800) / 4 + 200) * IN_RATE + ANSWER_TOKENS * OUT_RATE;
 const TLDR_TOKENS = 120;
 
 // Per-IP token buckets, checked in a Durable Object so the count is global
@@ -496,16 +499,25 @@ async function recommend(c, { cmd, request, envId }) {
   const parsed = cmd ? await parseOneLiner(cmd) : { ok: true, commands: [] };
   if (!parsed.ok) return c.json({ error: "bad command: the shell grammar cannot parse it" }, 400);
   const envIds = resolveEnv(envId);
+  const reserved = await charge(c.env, "take", SUGGEST_RESERVE);
+  if (!reserved.ok) return c.json({ error: "budget exhausted" }, 429);
+
   // A fresh suggestion has no command to restrict retrieval to; the corpus
   // index names the pages the request is about.
   const tools = parsed.commands.map((x) => x.name);
-  if (!tools.length) tools.push(...(await candidateTools(c.env, envIds, request)));
-  const docs = await retrieve(c.env, envIds, tools, request);
+  let docs;
+  try {
+    if (!tools.length) tools.push(...(await candidateTools(c.env, envIds, request)));
+    docs = await retrieve(c.env, envIds, tools, request);
+  } catch (error) {
+    console.error("suggestion retrieval failed", error);
+    await charge(c.env, "adjust", SUGGEST_RESERVE);
+    return c.json({ error: "the corpus is unreachable" }, 502);
+  }
   const context = docs.map((d) => `[${d.tool}(1) from ${d.env}]\n${d.text}`).join("\n\n");
 
   const est = ((context + cmd + request).length / 4 + 200) * IN_RATE + ANSWER_TOKENS * OUT_RATE;
-  const taken = await charge(c.env, "take", est);
-  if (!taken.ok) return c.json({ error: "budget exhausted" }, 429);
+  await charge(c.env, "adjust", SUGGEST_RESERVE - est);
 
   const basis = cmd
     ? "`command` is one shell line that adapts or extends the given command to satisfy the request."
