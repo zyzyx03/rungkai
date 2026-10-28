@@ -105,7 +105,9 @@ export function explain(cmd, parsed, pages, envId) {
             key,
             // The page's own usage line: "-mtime n", not "-mtime".
             title: form?.usage ?? part.usage ?? part.names.join(", "),
-            desc: form?.desc ?? part.desc,
+            // A flag documented only in the synopsis still has the page's own
+            // usage line; it is a citation, not an undocumented guess.
+            desc: form?.desc || part.desc || (part.usage ? `The page documents this flag only in its synopsis: ${part.usage}.` : ""),
             url: cite.url,
             env: cite.env,
             section: cite.section,
@@ -140,7 +142,7 @@ export function explain(cmd, parsed, pages, envId) {
         const option = {
           key,
           title: named.title,
-          desc: form?.desc ?? match.desc,
+          desc: form?.desc || match.desc || (match.usage ? `The page documents this flag only in its synopsis: ${match.usage}.` : ""),
           url: cite.url,
           env: cite.env,
           section: cite.section,
@@ -199,7 +201,7 @@ export function explain(cmd, parsed, pages, envId) {
         // never borrow the command's prose as its own definition.
         // An argument the page does not name is plain, not a gap: a package
         // name is not documentation the manual failed to write.
-        anchor: arg.text.startsWith("/") || (!named && !operand) ? null
+        anchor: arg.text.startsWith("/") || (!named && (!operand || !operand.desc)) ? null
           : { key: `op:${label}:${operand.name}`, title: operand.name, desc: operand.desc, url: cite.url, env: cite.env, section: cite.section },
       });
     }

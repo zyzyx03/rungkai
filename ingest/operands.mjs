@@ -454,6 +454,11 @@ export function commandEntries(html) {
     }
     // Other manuals list the commands as a definition list.
     for (const [head, desc] of definitionEntries(body)) add(head, desc);
+    // man(7) pages such as systemctl(1) write a command as a paragraph and an
+    // indented block: <p><b>status</b> ...</p><div class="Bd-indent">...</div>.
+    for (const m of body.matchAll(/<p class="Pp">((?:(?!<\/p>)[\s\S])*?)<\/p>\s*<div class="Bd-indent">/g)) {
+      add(m[1], blockBody(body, m.index + m[0].length, "div"));
+    }
   }
   return out;
 }

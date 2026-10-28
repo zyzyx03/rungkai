@@ -120,3 +120,15 @@ test("dnf-style Command: entries become subcommands", () => {
     { name: "check-update", desc: "Check for updates." },
   ]);
 });
+
+test("man(7) command paragraphs become commands", () => {
+  const html = `<h1 id="COMMANDS">COMMANDS</h1>
+    <p class="Pp"><b>status</b> [<i>PATTERN</i>...|<i>PID</i>...]]</p>
+    <div class="Bd-indent">Show runtime status information.</div>
+    <p class="Pp"><b>restart</b> <i>UNIT</i>...</p>
+    <div class="Bd-indent">Restart the specified units.</div>`;
+  assert.deepEqual(commandEntries(html), [
+    { name: "status", desc: "Show runtime status information." },
+    { name: "restart", desc: "Restart the specified units." },
+  ]);
+});

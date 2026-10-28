@@ -31,6 +31,7 @@ async function problems(cmd, pages, env) {
   const result = explain(cmd, { ...parsed, commands }, map, env);
   return [
     ...result.segments.filter((s) => s.kind === "unknown").map((s) => `undocumented ${s.text}`),
+    ...result.segments.filter((s) => s.anchor && !s.anchor.desc && s.kind !== "unknown").map((s) => `undocumented ${s.kind} ${s.text}`),
     ...result.gaps.map((name) => `no page for ${name}`),
   ];
 }

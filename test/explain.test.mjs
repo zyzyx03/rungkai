@@ -234,3 +234,31 @@ test("a documented subcommand gets its own card; the package name stays plain", 
   assert.equal(byText("httpd").anchor, null);
   assert.equal(byText("-y").anchor.desc, "answer yes");
 });
+
+test("an unnamed positional operand with no description stays plain", () => {
+  const page = {
+    synopsis: "Control services",
+    source: "https://example.test/systemctl",
+    operands: [{ name: "COMMAND", desc: "" }, { name: "UNIT", desc: "" }],
+  };
+  const parsed = {
+    commands: [{ name: "systemctl", nameSpan: [0, 9], args: [{ text: "status", span: [10, 16] }, { text: "nginx", span: [17, 22] }] }],
+    syntax: [],
+  };
+  const result = explain("systemctl status nginx", parsed, { systemctl: page }, "el9");
+  const nginx = result.segments.find((s) => s.text === "nginx" && s.anchor);
+  assert.equal(nginx, undefined);
+  assert.equal(result.gaps.length, 0);
+});
+
+test("a synopsis-only flag carries the page's usage as its citation", () => {
+  const page = {
+    synopsis: "RPM Package Manager",
+    source: "https://example.test/rpm",
+    options: [{ names: ["-q"], usage: "rpm {-q|--query} [select-options] [query-options]", desc: "" }],
+  };
+  const parsed = { commands: [{ name: "rpm", nameSpan: [0, 3], args: [{ text: "-q", span: [4, 6] }] }], syntax: [] };
+  const result = explain("rpm -q", parsed, { rpm: page }, "el9");
+  const q = result.segments.find((s) => s.text === "-q" && s.anchor)?.anchor;
+  assert.match(q.desc, /only in its synopsis/);
+});
