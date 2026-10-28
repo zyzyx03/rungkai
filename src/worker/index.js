@@ -10,6 +10,7 @@ import { audit, looksLikeInjection } from "../lib/audit.js";
 import { resolveEnv } from "../lib/envs.js";
 import { checkText, readBody, MAX_CMD, MAX_MESSAGES, MAX_MESSAGE } from "../lib/input.js";
 import { commandHash } from "../lib/cache.js";
+import { flagCandidates } from "../lib/shards.js";
 import { Budget } from "./budget.js";
 import { RateLimit } from "./ratelimit.js";
 import { settledCost } from "../lib/budget.js";
@@ -95,17 +96,22 @@ async function loadPage(env, envId, tool, args = []) {
   for (let n = path.length; n >= 1; n--) {
     for (const id of envIds) {
       const key = `${id}/${path.slice(0, n).join("-")}`;
-      const cached = PAGE_CACHE.get(key);
-      if (cached) {
+      let page = PAGE_CACHE.get(key);
+      if (page) {
         // Touch it: the least recently used page is the one to drop.
         PAGE_CACHE.delete(key);
-        PAGE_CACHE.set(key, cached);
-        return { ...cached, env: id, subArgs: n - 1 };
+        PAGE_CACHE.set(key, page);
+      } else {
+        page = await readPage(env, key);
+        if (!page) continue;
       }
-      const page = await readPage(env, key);
-      if (!page) continue;
-      PAGE_CACHE.set(key, page);
-      if (PAGE_CACHE.size > PAGE_CACHE_SIZE) PAGE_CACHE.delete(PAGE_CACHE.keys().next().value);
+      // A sharded page is assembled per command; caching the assembled
+      // options would poison a later command that uses different flags.
+      if (page.shards) return { ...(await withShards(env, key, page, args)), env: id, subArgs: n - 1 };
+      if (!PAGE_CACHE.has(key)) {
+        PAGE_CACHE.set(key, page);
+        if (PAGE_CACHE.size > PAGE_CACHE_SIZE) PAGE_CACHE.delete(PAGE_CACHE.keys().next().value);
+      }
       return { ...page, env: id, subArgs: n - 1 };
     }
   }
@@ -128,6 +134,35 @@ async function readPage(env, key) {
       }
     }
   }
+}
+
+async function readShard(env, key) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const obj = await env.CORPUS.get(`${key}.json`);
+      return obj ? await obj.json() : null;
+    } catch (error) {
+      if (attempt) {
+        console.error(`corpus shard ${key} could not be read:`, error);
+        return null;
+      }
+    }
+  }
+}
+
+async function withShards(env, key, page, args) {
+  const flags = flagCandidates(args, page.shards);
+  const numbers = [...new Set(flags.map((flag) => page.shards[flag]))];
+  const shards = await Promise.all(numbers.map((n) => readShard(env, `${key}.shard.${n}`)));
+  const options = [];
+  const values = {};
+  for (const shard of shards) {
+    if (!shard) continue;
+    options.push(...(shard.options ?? []));
+    Object.assign(values, shard.values ?? {});
+  }
+  const { shards: _shards, ...rest } = page;
+  return { ...rest, options, values };
 }
 
 app.post("/api/explain", async (c) => {

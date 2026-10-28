@@ -33,7 +33,7 @@ async function embed(texts) {
   return vectors;
 }
 
-const files = readdirSync(dir).filter((file) => file.endsWith(".json") && !file.endsWith(".lite.json"));
+const files = readdirSync(dir).filter((file) => file.endsWith(".json") && !file.includes(".shard.") && !file.endsWith(".lite.json"));
 let done = 0;
 let failed = 0;
 // Alias pages hold the same words as the page they point at, so each chunk is

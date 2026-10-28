@@ -11,7 +11,7 @@ const UNREACHABLE = /\s|[\p{Cc}\p{Cf}]/u;
 const dropped = [];
 
 for (const file of readdirSync(dir)) {
-  if (!file.endsWith(".json") || file.startsWith("_") || file.endsWith(".lite.json")) continue;
+  if (!file.endsWith(".json") || file.includes(".shard.") || file.startsWith("_") || file.endsWith(".lite.json")) continue;
   const page = JSON.parse(readFileSync(join(dir, file), "utf8"));
   const cmd = page.cmd ?? file.replace(/\.json$/, "");
   const unreachable = UNREACHABLE.test(cmd);
