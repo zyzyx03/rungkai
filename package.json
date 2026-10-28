@@ -21,7 +21,8 @@
     "embed:local": "node ingest/embed-local.mjs",
     "eval:retrieval:local": "node test/retrieval/eval.mjs --local",
     "corpus:kubectl": "node ingest/kubectl-help.mjs",
-    "corpus:lite": "node ingest/lite.mjs"
+    "corpus:lite": "node ingest/lite.mjs",
+    "corpus:subcommands": "node ingest/subcommands.mjs"
   },
   "dependencies": {
     "astro": "^7.4.2",
