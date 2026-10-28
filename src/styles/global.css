@@ -911,3 +911,19 @@ input.neon-frame:focus-visible {
   background: currentColor;
   box-shadow: 0 0 8px currentColor;
 }
+
+/* A wrong-language paste gets a small mascot, not a red rule. */
+.error-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding: 0.8rem 0;
+  color: #f7768e;
+}
+.error-mascot {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: #38bdf8;
+}
+.error-mascot svg { width: 100%; height: 100%; }

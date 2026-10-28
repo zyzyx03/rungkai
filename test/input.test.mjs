@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { looksLikePython } from "../src/lib/input.js";
+import { looksLikePython, looksLikeGo, foreignLanguage } from "../src/lib/input.js";
 import { checkText, checkBody, readBody, MAX_CMD, MAX_BODY } from "../src/lib/input.js";
 
 // The characters that are refused, named rather than written: an escape, a
@@ -117,4 +117,17 @@ test("a Python list comprehension is not a shell one-liner", () => {
   assert.equal(looksLikePython("ls -la"), false);
   assert.equal(looksLikePython("arr=(one two three)"), false);
   assert.equal(looksLikePython("echo '[x for x in y]'"), false);
+});
+
+test("Go code is not a shell command", () => {
+  assert.equal(looksLikeGo("package main\nfunc main() {}"), true);
+  assert.equal(looksLikeGo("x := 1"), true);
+  assert.equal(looksLikeGo("go build ./..."), false);
+  assert.equal(looksLikeGo("for user in $(cut -f1 -d: /etc/passwd); do echo $user; done"), false);
+});
+
+test("the foreign-language response names the language", () => {
+  assert.equal(foreignLanguage("flat_list = [item for item in rows]").language, "python");
+  assert.equal(foreignLanguage("package main").language, "go");
+  assert.equal(foreignLanguage("ls -la"), null);
 });

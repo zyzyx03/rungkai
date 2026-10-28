@@ -1,5 +1,5 @@
 /* @unocss-include */
-import { MAN_PAGE_ICON, EXTERNAL_ICON } from "../lib/icons.js";
+import { MAN_PAGE_ICON, EXTERNAL_ICON, SNAKE_ICON, GOPHER_ICON } from "../lib/icons.js";
 import { nestPieces } from "../lib/nesting.js";
 import { SYNTAX_NOTES } from "../lib/syntax.js";
 import { completeLines } from "../lib/sse.js";
@@ -159,7 +159,9 @@ async function explain(cmd, env, historyMode = "push") {
         showSlowDown(data.retryAfter);
         return;
       }
-      throw new Error(data.error ?? `explain failed (${res.status})`);
+      const error = new Error(data.error ?? `explain failed (${res.status})`);
+      error.language = data.language;
+      throw error;
     }
     const result = await res.json();
     // A 200 with a body that is not an explanation is still a failure; the
@@ -182,10 +184,19 @@ async function explain(cmd, env, historyMode = "push") {
       els.brackets.replaceChildren();
       connectorKey = "";
       els.empty.hidden = true;
-      const alert = document.createElement("p");
-      alert.className = "border-t border-signal/40 pt-5 text-[14px] text-signal";
-      alert.textContent = error.message;
-      els.cards.replaceChildren(alert);
+      const card = document.createElement("div");
+      card.className = "error-card";
+      if (error.language) {
+        const mascot = document.createElement("span");
+        mascot.className = "error-mascot";
+        mascot.innerHTML = error.language === "python" ? SNAKE_ICON : GOPHER_ICON;
+        card.append(mascot);
+      }
+      const copy = document.createElement("p");
+      copy.className = "text-[14px] leading-relaxed";
+      copy.textContent = error.message;
+      card.append(copy);
+      els.cards.replaceChildren(card);
     });
   } finally {
     if (explainRequest === request) setBusy(false);

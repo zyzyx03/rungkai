@@ -28,14 +28,46 @@ export const MAX_BODY = 256 * 1024;
 
 const INVISIBLE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 
-// A shell explainer should not pretend a Python list comprehension is a
+// A shell explainer should not pretend a Python or Go program is a shell
 // command: bash would read `flat_list` as a command and `=` as an operand.
-// This is intentionally narrow; `import` and `print` are real shell commands.
+// This stays narrow; `import` and `print` are real shell commands.
 export function looksLikePython(text) {
   const value = String(text ?? "");
   if (/^\s*(?:[A-Za-z_]\w*\s*=\s*)?\[[^\]]*\bfor\b[^\]]*\bin\b[^\]]*\]\s*$/.test(value)) return true;
   if (/^\s*def\s+[A-Za-z_]\w*\s*\([^)]*\)\s*:/.test(value)) return true;
+  if (/^\s*(?:for|if|elif|while)\s+[^;]+:\s*$/.test(value)) return true;
+  if (/^\s*class\s+[A-Za-z_]\w*\s*(?:\(|:)/.test(value)) return true;
+  if (/^\s*from\s+[A-Za-z_][\w.]*\s+import\s+/.test(value)) return true;
   return false;
+}
+
+export function looksLikeGo(text) {
+  const value = String(text ?? "");
+  return [
+    /^\s*package\s+[A-Za-z_]\w*\s*$/m,
+    /^\s*func\s+[A-Za-z_]\w*\s*\(/m,
+    /^\s*import\s+\(/m,
+    /(?<![\w$])\b[A-Za-z_]\w*\s*:=\s*/,
+    /^\s*var\s+[A-Za-z_]\w*\s+[A-Za-z_]\w*/m,
+    /\bfmt\.(?:Print|Println|Printf|Sprintf)\b/,
+  ].some((pattern) => pattern.test(value));
+}
+
+export function foreignLanguage(text) {
+  const value = String(text ?? "");
+  if (looksLikePython(value)) {
+    return {
+      language: "python",
+      error: "Sorry — we don't speak snake language here. This is a shell explainer; try `python3 script.py`.",
+    };
+  }
+  if (looksLikeGo(value)) {
+    return {
+      language: "go",
+      error: "Sorry — we don't speak Gopher here. This is a shell explainer; try `go run main.go`.",
+    };
+  }
+  return null;
 }
 
 // The problem with a string, or null when there is none.
