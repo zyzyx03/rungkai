@@ -1,0 +1,4 @@
+# Fonts are content-stable and preloaded in the document head. A fresh cached
+# response lets the font request reuse the preload instead of revalidating it.
+/fonts/*
+  Cache-Control: public, max-age=604800
