@@ -119,7 +119,7 @@ async function loadPage(env, envId, tool, args = []) {
 async function readPage(env, key) {
   for (let attempt = 0; ; attempt++) {
     try {
-      const obj = await env.CORPUS.get(`${key}.json`);
+      const obj = (await env.CORPUS.get(`${key}.lite.json`)) ?? (await env.CORPUS.get(`${key}.json`));
       return obj ? await obj.json() : null;
     } catch (error) {
       if (attempt) {

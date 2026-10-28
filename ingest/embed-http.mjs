@@ -15,7 +15,7 @@ const DOC_PROMPT = process.env.EMBED_PROMPT ?? "";
 const BATCH = Number(process.env.EMBED_BATCH ?? 64);
 const TIMEOUT = 1_800_000;
 
-const files = readdirSync(dir).filter((file) => file.endsWith(".json") && !file.startsWith("_"));
+const files = readdirSync(dir).filter((file) => file.endsWith(".json") && !file.endsWith(".lite.json") && !file.startsWith("_"));
 const pages = [];
 for (const file of files) {
   const path = join(dir, file);

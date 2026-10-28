@@ -13,7 +13,7 @@ const wrangler = "node_modules/.bin/wrangler";
 
 // The index and the manifest describe what is about to be uploaded, so they
 // are rebuilt here and cannot drift from the corpus.
-const pageCount = readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("_")).length;
+const pageCount = readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("_") && !f.endsWith(".lite.json")).length;
 const indexed = writeIndex(dir);
 writeFileSync(
   join(dir, "_meta.json"),

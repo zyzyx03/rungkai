@@ -15,7 +15,7 @@ const POOLING = process.env.EMBED_POOLING === "cls" || process.argv.includes("--
 console.log(`loading Xenova/bge-small-en-v1.5 (fp32, ${POOLING} pooling)...`);
 const extractor = await pipeline("feature-extraction", "Xenova/bge-small-en-v1.5", { dtype: "fp32" });
 
-const files = readdirSync(dir).filter((file) => file.endsWith(".json") && !file.startsWith("_"));
+const files = readdirSync(dir).filter((file) => file.endsWith(".json") && !file.endsWith(".lite.json") && !file.startsWith("_"));
 const vectors = new Map();
 let done = 0;
 let failed = 0;

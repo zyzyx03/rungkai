@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 export function writeIndex(dir) {
   const pages = [];
   for (const file of readdirSync(dir)) {
-    if (!file.endsWith(".json") || file.startsWith("_")) continue;
+    if (!file.endsWith(".json") || file.startsWith("_") || file.endsWith(".lite.json")) continue;
     const page = JSON.parse(readFileSync(join(dir, file), "utf8"));
     // A page without chunks cannot ground an answer; leave it out of the
     // candidate list until it is embedded.
