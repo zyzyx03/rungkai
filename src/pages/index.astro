@@ -268,7 +268,12 @@ const exampleHref = (cmd, env) =>
       </div>
       </div>
 
-      <footer class="mx-auto mt-20 flex max-w-[900px] flex-wrap items-center justify-end gap-3">
+      <footer class="mx-auto mt-20 flex max-w-[900px] flex-wrap items-center justify-between gap-3">
+        <a class="author-chip" href="https://fauzuwan.my/" rel="me noreferrer" target="_blank" aria-label="Fauzuwan’s blog">
+          <span class="author-mark" aria-hidden="true">F</span>
+          <span class="author-copy">by <span class="author-name">fauzuwan</span><span class="author-dot">.</span></span>
+          <Fragment set:html={EXTERNAL_ICON} />
+        </a>
         <nav class="flex flex-wrap items-center gap-3" aria-label="Man page sources">
           <a class="source-chip" href="https://manpages.ubuntu.com/manpages/noble/" rel="noreferrer" target="_blank" aria-label="ubuntu 24.04 man pages">
             <Fragment set:html={MAN_PAGE_ICON} />
@@ -278,6 +283,11 @@ const exampleHref = (cmd, env) =>
           <a class="source-chip" href="https://man7.org/linux/man-pages/" rel="noreferrer" target="_blank" aria-label="man7.org man pages">
             <Fragment set:html={MAN_PAGE_ICON} />
             <span>man7.org</span>
+            <Fragment set:html={EXTERNAL_ICON} />
+          </a>
+          <a class="source-chip" href="https://www.mankier.com/" rel="noreferrer" target="_blank" aria-label="mankier man pages for el9 and alpine">
+            <Fragment set:html={MAN_PAGE_ICON} />
+            <span>mankier.com</span>
             <Fragment set:html={EXTERNAL_ICON} />
           </a>
         </nav>
