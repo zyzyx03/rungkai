@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { looksLikePython } from "../src/lib/input.js";
 import { checkText, checkBody, readBody, MAX_CMD, MAX_BODY } from "../src/lib/input.js";
 
 // The characters that are refused, named rather than written: an escape, a
@@ -106,4 +107,14 @@ test("a body must be declared JSON, and a cross-site request is refused", async 
   assert.match((await readBody(request({ "content-type": "text/plain" }))).error, /must be JSON/);
   // Fetch Metadata is the second lock.
   assert.match((await readBody(request({ "sec-fetch-site": "cross-site" }))).error, /cross-site/);
+});
+
+test("a Python list comprehension is not a shell one-liner", () => {
+  assert.equal(looksLikePython("flat_list = [item for sublist in matrix for item in sublist]"), true);
+  assert.equal(looksLikePython("[x for x in y]"), true);
+  assert.equal(looksLikePython("def greet(name):"), true);
+  assert.equal(looksLikePython("for user in $(cut -f1 -d: /etc/passwd); do crontab -u $user -l; done"), false);
+  assert.equal(looksLikePython("ls -la"), false);
+  assert.equal(looksLikePython("arr=(one two three)"), false);
+  assert.equal(looksLikePython("echo '[x for x in y]'"), false);
 });

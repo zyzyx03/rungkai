@@ -8,7 +8,7 @@ import { candidateTools } from "../lib/candidates.js";
 import { chatAuthorized } from "../lib/chat-auth.js";
 import { audit, looksLikeInjection } from "../lib/audit.js";
 import { resolveEnv } from "../lib/envs.js";
-import { checkText, readBody, MAX_CMD, MAX_MESSAGES, MAX_MESSAGE } from "../lib/input.js";
+import { checkText, readBody, looksLikePython, MAX_CMD, MAX_MESSAGES, MAX_MESSAGE } from "../lib/input.js";
 import { commandHash } from "../lib/cache.js";
 import { flagCandidates } from "../lib/shards.js";
 import { Budget } from "./budget.js";
@@ -171,6 +171,7 @@ app.post("/api/explain", async (c) => {
   const { cmd } = body;
   const problem = checkText(cmd);
   if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
+  if (looksLikePython(cmd)) return c.json({ error: "that looks like Python, not a shell one-liner" }, 400);
 
   // Bump CORPUS_VERSION after re-ingesting, or a stale answer survives for a day.
   const version = c.env.CORPUS_VERSION ?? "1";
@@ -223,6 +224,7 @@ app.post("/api/chat", async (c) => {
   }
   const problem = checkText(cmd);
   if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
+  if (looksLikePython(cmd)) return c.json({ error: "that looks like Python, not a shell one-liner" }, 400);
   // Only the two roles a conversation has. A caller-supplied system message
   // would sit after the one below and could replace it.
   for (const message of messages) {
@@ -317,6 +319,7 @@ app.post("/api/tldr", async (c) => {
   const { cmd } = body;
   const problem = checkText(cmd);
   if (problem) return c.json({ error: `bad command: ${problem}` }, 400);
+  if (looksLikePython(cmd)) return c.json({ error: "that looks like Python, not a shell one-liner" }, 400);
   const flagged = looksLikeInjection(cmd);
   if (flagged) c.executionCtx.waitUntil(audit(c, "/api/tldr", flagged, cmd, envId));
   if (!c.env.DEEPSEEK_API_KEY) return c.json({ error: "not configured" }, 503);
@@ -498,6 +501,7 @@ app.on("POST", ["/api/suggest", "/api/change"], async (c) => {
   // A new command has no command to check; a changed one does.
   const bad = cmd ? checkText(cmd) : null;
   if (bad) return c.json({ error: `bad command: ${bad}` }, 400);
+  if (cmd && looksLikePython(cmd)) return c.json({ error: "that looks like Python, not a shell one-liner" }, 400);
   const requestReason = looksLikeInjection(request);
   const cmdReason = cmd ? looksLikeInjection(cmd) : null;
   if (requestReason || cmdReason) {

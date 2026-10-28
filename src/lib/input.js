@@ -28,6 +28,16 @@ export const MAX_BODY = 256 * 1024;
 
 const INVISIBLE = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
 
+// A shell explainer should not pretend a Python list comprehension is a
+// command: bash would read `flat_list` as a command and `=` as an operand.
+// This is intentionally narrow; `import` and `print` are real shell commands.
+export function looksLikePython(text) {
+  const value = String(text ?? "");
+  if (/^\s*(?:[A-Za-z_]\w*\s*=\s*)?\[[^\]]*\bfor\b[^\]]*\bin\b[^\]]*\]\s*$/.test(value)) return true;
+  if (/^\s*def\s+[A-Za-z_]\w*\s*\([^)]*\)\s*:/.test(value)) return true;
+  return false;
+}
+
 // The problem with a string, or null when there is none.
 export function checkText(text, max = MAX_CMD) {
   if (typeof text !== "string") return "it is not text";
