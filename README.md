@@ -8,41 +8,41 @@ as a gap. The base explanation is deterministic; optional AI features summarise
 the command or suggest one from a plain-language request.
 
 <p align="center">
-  <a href="docs/images/explainer.png"><img src="docs/images/explainer.png" width="560" alt="Rungkai connects ss -l to the socket utility's manual and its listening option." /></a>
+  <a href="docs/images/explainer-demo.gif"><img src="docs/images/explainer-demo.gif" width="560" alt="Animated browser capture: hovering over ss and -l highlights their connections to the manual entries." /></a>
 </p>
 
-## Screenshots
+## Feature demos
 
-Real screens from the running app. Click any image for a closer look.
+Each tile is a looping capture of the running app. Click a demo for a closer look.
 
 <table>
   <tr>
     <td align="center" width="50%">
-      <a href="docs/images/explainer.png"><img src="docs/images/explainer.png" width="420" alt="A command and its flag connected to documentation cards." /></a><br />
+      <a href="docs/images/explainer-demo.gif"><img src="docs/images/explainer-demo.gif" width="420" alt="A command and its flag connected to documentation cards." /></a><br />
       <strong>Explain</strong> · trace tokens to their sources
     </td>
     <td align="center" width="50%">
-      <a href="docs/images/feature-bahasa-melayu.png"><img src="docs/images/feature-bahasa-melayu.png" width="420" alt="A Bahasa Melayu request for files over 100MB produces a find command, rationale and assumptions." /></a><br />
+      <a href="docs/images/feature-bahasa-melayu.gif"><img src="docs/images/feature-bahasa-melayu.gif" width="420" alt="A Bahasa Melayu request for files over 100MB produces a find command, rationale and assumptions." /></a><br />
       <strong>Bahasa Melayu</strong> · ask for a command in your own words
     </td>
   </tr>
   <tr>
     <td align="center">
-      <a href="docs/images/feature-nested.png"><img src="docs/images/feature-nested.png" width="420" alt="sudo ss -l is broken down into the wrapper, nested command and listening flag." /></a><br />
+      <a href="docs/images/feature-nested.gif"><img src="docs/images/feature-nested.gif" width="420" alt="sudo ss -l is broken down into the wrapper, nested command and listening flag." /></a><br />
       <strong>Nested commands</strong> · follow what a wrapper runs
     </td>
     <td align="center">
-      <a href="docs/images/feature-environments.png"><img src="docs/images/feature-environments.png" width="420" alt="The environment picker offers all corpora, Ubuntu 24.04, EL9 and Alpine 3.22." /></a><br />
+      <a href="docs/images/feature-environments.gif"><img src="docs/images/feature-environments.gif" width="420" alt="Opening the environment picker and switching the command documentation from Ubuntu 24.04 to EL9." /></a><br />
       <strong>Environments</strong> · read the matching documentation
     </td>
   </tr>
   <tr>
     <td align="center">
-      <a href="docs/images/feature-summary.png"><img src="docs/images/feature-summary.png" width="420" alt="A plain-English summary of rm -rf ./build is labelled destructive above its documentation breakdown." /></a><br />
+      <a href="docs/images/feature-summary.gif"><img src="docs/images/feature-summary.gif" width="420" alt="Opening a streamed summary of rm -rf ./old-build reveals a destructive warning above the documentation breakdown." /></a><br />
       <strong>Plain-English summary</strong> · see what the command changes
     </td>
     <td align="center">
-      <a href="docs/images/feature-gaps.png"><img src="docs/images/feature-gaps.png" width="420" alt="An invented tar option is shown as undocumented rather than given an explanation." /></a><br />
+      <a href="docs/images/feature-gaps.gif"><img src="docs/images/feature-gaps.gif" width="420" alt="An invented tar option is shown as undocumented rather than given an explanation." /></a><br />
       <strong>Visible gaps</strong> · know where documentation ends
     </td>
   </tr>
@@ -51,12 +51,6 @@ Real screens from the running app. Click any image for a closer look.
 Bahasa Melayu requests work in Suggest mode; the interface, manual excerpts
 and the captured model response are in English. Suggestions and summaries need
 the optional model configuration.
-
-<details>
-  <summary>Watch the token connections in motion</summary>
-  <p>A short browser capture: hovering over a command or flag highlights its route and source entry.</p>
-  <img src="docs/images/explainer-demo.gif" width="640" alt="Animated browser capture highlighting the connections from ss and -l to their manual entries." />
-</details>
 
 ## What works today
 
