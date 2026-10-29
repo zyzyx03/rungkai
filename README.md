@@ -2,506 +2,550 @@
 
 **Understand every part of your command.**
 
-Paste a shell one-liner. Rungkai breaks it into tokens, matches each one to the
-man page that defines it, and routes a line from the token to the entry that
-documents it. Anything the man pages do not cover is marked as a gap rather
-than guessed at.
+Rungkai breaks a shell one-liner into tokens and connects each documented tool,
+flag, operand and shell construct to its source. Missing documentation appears
+as a gap. The base explanation is deterministic; optional AI features summarise
+the command or suggest one from a plain-language request.
 
-![The Explainer: a command with each documented token routed to its entry](docs/images/explainer.png)
+<p align="center">
+  <a href="docs/images/explainer.png"><img src="docs/images/explainer.png" width="560" alt="Rungkai connects ss -l to the socket utility's manual and its listening option." /></a>
+</p>
 
-The point is that every claim is anchored. A flag is described by the page that
-documents it, an operand by the page's own wording, and a tool with no page in
-the selected environment is shown as a gap. The model can summarise, recommend
-or rewrite a command, but it never supplies the base explanation.
+## Screenshots
 
-## Why
+Real screens from the running app. Click any image for a closer look.
 
-Reading a command someone else wrote is a documentation problem. The syntax
-helps if you already know it; the flags do not. Rungkai answers "what does
-each part of this do, and where does that answer come from" — the way a man
-page would, but for a whole one-liner at once.
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="docs/images/explainer.png"><img src="docs/images/explainer.png" width="420" alt="A command and its flag connected to documentation cards." /></a><br />
+      <strong>Explain</strong> · trace tokens to their sources
+    </td>
+    <td align="center" width="50%">
+      <a href="docs/images/feature-bahasa-melayu.png"><img src="docs/images/feature-bahasa-melayu.png" width="420" alt="A Bahasa Melayu request for files over 100MB produces a find command, rationale and assumptions." /></a><br />
+      <strong>Bahasa Melayu</strong> · ask for a command in your own words
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="docs/images/feature-nested.png"><img src="docs/images/feature-nested.png" width="420" alt="sudo ss -l is broken down into the wrapper, nested command and listening flag." /></a><br />
+      <strong>Nested commands</strong> · follow what a wrapper runs
+    </td>
+    <td align="center">
+      <a href="docs/images/feature-environments.png"><img src="docs/images/feature-environments.png" width="420" alt="The environment picker offers all corpora, Ubuntu 24.04, EL9 and Alpine 3.22." /></a><br />
+      <strong>Environments</strong> · read the matching documentation
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="docs/images/feature-summary.png"><img src="docs/images/feature-summary.png" width="420" alt="A plain-English summary of rm -rf ./build is labelled destructive above its documentation breakdown." /></a><br />
+      <strong>Plain-English summary</strong> · see what the command changes
+    </td>
+    <td align="center">
+      <a href="docs/images/feature-gaps.png"><img src="docs/images/feature-gaps.png" width="420" alt="An invented tar option is shown as undocumented rather than given an explanation." /></a><br />
+      <strong>Visible gaps</strong> · know where documentation ends
+    </td>
+  </tr>
+</table>
 
-## Try it
+Bahasa Melayu requests work in Suggest mode; the interface, manual excerpts
+and the captured model response are in English. Suggestions and summaries need
+the optional model configuration.
+
+<details>
+  <summary>Watch the token connections in motion</summary>
+  <p>A short browser capture: hovering over a command or flag highlights its route and source entry.</p>
+  <img src="docs/images/explainer-demo.gif" width="640" alt="Animated browser capture highlighting the connections from ss and -l to their manual entries." />
+</details>
+
+## What works today
+
+- **Explain a command:** pipelines, redirections, substitutions, quoting,
+  compound commands, bundled flags, option values and positional arguments.
+- **Follow nested commands:** wrappers such as `sudo` and commands run through
+  constructs such as `find -exec` are resolved to their own documentation.
+- **Choose an environment:** Ubuntu 24.04, EL9 (Rocky/Alma/RHEL), Alpine 3.22,
+  or `all`. The default `all` searches the registered corpora and labels each
+  source; it does not guarantee that every tool exists on one machine.
+- **Read the sources:** interactive token-to-entry connectors, manual links,
+  visible documentation gaps and grouped examples.
+- **Use AI when configured:** a streamed plain-English summary with risk
+  indicators, fresh command suggestions, and changes to an existing command.
+  Suggestions include a rationale, assumptions, and a check of which tools have
+  corpus pages. That check does not validate every flag or prove a command safe.
+- **Ask in Bahasa Melayu:** describe the task in Suggest mode, for example
+  `Senaraikan fail yang lebih besar daripada 100MB dalam folder semasa`.
+- **Share a view:** permalinks carry the command and environment; browser Back
+  and Forward restore previous views. Ctrl/Cmd+K focuses the command input.
+
+Rungkai reads commands; it does not execute them. Input is limited to a single
+line of up to 1,024 JavaScript string characters. Control and invisible format
+characters are rejected. Parsing uses Bash grammar, including when the selected
+corpus is Alpine; this is not an interpreter for every shell dialect.
+
+## Run locally
+
+Use **Node.js 22.23.4 or newer** and npm. The repository includes a lockfile,
+test fixtures and a small demo page, but no complete production corpus.
 
 ```sh
-npm install
+npm ci
 npm test
-npm run dev:local          # http://localhost:8787
+npm run dev:local
 ```
 
-`dev:local` builds the site and serves it from the local R2 store. It needs a
-corpus in that store; see [Corpus](#corpus) below for how to put one there.
+Open <http://localhost:8787>. This builds the Astro site and serves it through
+Wrangler with local R2 and Durable Objects. Re-run the command after editing the
+frontend to rebuild the static assets.
 
-To run against a real deployment instead:
+An empty R2 store produces documentation gaps. For a small demo, run this in a
+second terminal, then explain `tar -zcf archive.tar.gz ./src` with Ubuntu 24.04
+selected:
+
+```sh
+npx wrangler r2 object put rungkai-corpus/ubuntu/24.04/tar.json \
+  --file seed/tar.json --local
+```
+
+`seed/tar.json` is a deliberately incomplete fixture, not a fully ingested man
+page. For normal use, [build and upload a corpus](#build-a-corpus). If an empty
+answer was already cached, clear `.wrangler/state/v3/cache` and restart the dev
+server after loading pages.
+
+The explainer needs no model key. To enable local summaries and suggestions,
+create a gitignored `.dev.vars` file:
+
+```dotenv
+DEEPSEEK_API_KEY=your-key
+```
+
+The local configuration has no Workers AI binding. Retrieval falls back to word
+overlap over available text chunks, plus exact option matches. Production uses
+Workers AI embeddings. `.env` is used by evaluation scripts; `.dev.vars` supplies
+local Worker secrets.
+
+## Deploy to Cloudflare
+
+The app runs as one Worker with static assets, an R2 corpus bucket, a Workers AI
+binding and two SQLite Durable Object classes. Review
+[`wrangler.jsonc`](wrangler.jsonc) for your account before deploying.
+
+Use your own Cloudflare login and select your account if you belong to several.
+You can keep the Worker name `rungkai` and bucket name `rungkai-corpus` in your
+account. To rename them, change `name` and `r2_buckets[].bucket_name` in Wrangler;
+keep the binding names (`CORPUS`, `AI`, `BUDGET`, `RATE_LIMIT`) as they are. The
+bucket name is also hardcoded as `BUCKET` in `ingest/upload.mjs` and
+`ingest/export.mjs`: update both if you choose a different bucket. Update
+`wrangler.local.jsonc` too if you want local development to use that name.
 
 ```sh
 npx wrangler login
 npx wrangler r2 bucket create rungkai-corpus
-npx wrangler secret put DEEPSEEK_API_KEY
+
+# Deploy the site, Worker, bindings and Durable Object migrations.
 npm run deploy
+
+# Optional: enable model features on the deployed Worker.
+npx wrangler secret put DEEPSEEK_API_KEY
 ```
 
-The explainer needs no model key — it is deterministic. The key powers the
-plain-English summary, the recommender and the chat.
+Upload your built corpus separately: deploying the Worker does not publish
+`.corpus/`. Build it on a Linux machine or Linux container with the ingestion
+tools and source documentation; a GPU is optional. After choosing an embedding
+path below, follow [Prepare and upload](#prepare-and-upload), bump
+`CORPUS_VERSION`, and deploy again.
 
-## How it works
+`npm run dev` uses Wrangler's **remote** mode and real Cloudflare
+resources; `npm run dev:local` uses the local configuration.
 
-| Piece | What it does |
-| --- | --- |
-| `src/lib/parse.js` | Parses the one-liner with tree-sitter's `bash` grammar. |
-| `src/lib/explain.js` | Turns the parse plus corpus pages into renderable segments. |
-| `src/lib/pages.js` | Matches an argument to a man-page option entry, including bundled flags like `-zcf`. |
-| `src/lib/wrap.js` | Finds the command a command runs in turn: `sudo ss`, `find -exec rm`. |
-| `src/lib/retrieve.js` | Cosine over only the pages of the tools the command names; duplicate excerpts are read once, and a flag the question names is taken straight from the page. |
-| `src/worker/index.js` | The Hono Worker: `/api/explain`, `/api/tldr`, `/api/suggest` (alias `/api/change`), `/api/chat`. |
-| `src/worker/budget.js` | A Durable Object holding the daily model budget. |
-| `src/worker/ratelimit.js` | A Durable Object per IP and limiter holding the token bucket. |
-| `src/client/app.js` | Synopsis tokens, connector routing, hover isolation, permalinks. |
-| `src/pages/index.astro` | The page itself. |
-| `ingest/` | Builds a corpus from man pages and moves it in and out of R2. |
+### Choose where embeddings run
 
-`POST /api/change` is a compatibility alias for `/api/suggest` that still requires a string `cmd`; `/api/suggest` can omit it for a new command.
+Document embeddings are generated when building or refreshing the corpus.
+Query embeddings are generated during semantic retrieval for suggestions and
+chat. The deterministic explainer and the summary endpoint do not need
+embeddings. With the current code, query embeddings run on **Workers AI** when
+the `AI` binding is present; an ingestion GPU does not serve live queries.
 
-`/api/chat` is internal to the Promptfoo harness and requires
-`Authorization: Bearer $CHAT_TOKEN`. Set the secret with
-`npx wrangler secret put CHAT_TOKEN`; the harness generates a throwaway token
-for its local server, so nothing is stored in the repository.
+| Setup | Document embeddings | Live retrieval | Required changes |
+| --- | --- | --- | --- |
+| No GPU; use Workers AI quota for all embeddings | `ingest/embed.mjs` on Workers AI | Workers AI BGE | Set Worker model to BGE and pooling to `mean` |
+| Own GPU; keep Workers AI queries | `ingest/embed-http.mjs` against your service | Workers AI with the matching model | Configure your HTTP service and match the Worker model |
+| No GPU; save ingestion Neurons | `ingest/embed-local.mjs` on CPU | Workers AI BGE | Set Worker model to BGE and match pooling |
+| No Workers AI; lexical retrieval | CPU BGE or existing text chunks | Word overlap and exact flag matches | Remove the `ai` binding from the deployed Wrangler config |
+| Own service for both documents and queries | Your HTTP embedding service | Your service | Change `src/lib/retrieve.js`; no runtime HTTP-provider setting exists yet |
 
-The stack is Astro (static output) served by one Hono Worker on Cloudflare
-Workers, styled with UnoCSS. Man pages live in R2, one JSON document per tool.
-The model is DeepSeek, behind a budget and per-IP token buckets the Durable Objects
-enforce.
-
-Nothing is stored: no accounts, no history, no saved commands. A permalink
-carries the command and the environment in the URL. The model endpoints have
-one exception: an input that matches a prompt-injection heuristic is written
-to Workers Logs as a truncated excerpt with a salted, hashed address and the
-time, for the log retention window. Ordinary commands and questions are never
-logged.
-
-By [Fauzuwan Nazri](https://fauzuwan.my). MIT licensed — see
-[Licence](#licence).
-
-## Corpus
-
-A **corpus** is the man pages for one target environment, stored as one JSON
-document per tool. It is the only thing Rungkai may anchor to. The format:
+**No GPU, all embeddings on Workers AI.** The existing REST ingestion script
+uses BGE, so set these variables in `wrangler.jsonc` (and the local config if you
+want them aligned):
 
 ```json
-{
-  "cmd": "ssh",
-  "env": "ubuntu/24.04",
-  "section": 1,
-  "source": "https://manpages.ubuntu.com/manpages/noble/en/man1/ssh.1.html",
-  "licence": "COPYRIGHT ...",
-  "synopsis": "OpenSSH remote login client",
-  "options": [{ "names": ["-4"], "desc": "Forces ssh to use IPv4 addresses only." }],
-  "values": { "-i": "identity_file" },
-  "operands": [{ "name": "destination", "desc": "ssh connects and logs into..." }],
-  "chunks": [{ "text": "...", "embedding": [0.01, -0.02, "..."] }],
-  "cluster": true
-}
+"EMBED_MODEL": "@cf/baai/bge-small-en-v1.5",
+"EMBED_POOLING": "mean"
 ```
 
-`values` is what each option takes, so the word after `-i` is known to be that
-option's value rather than a separate thing to explain. `operands` are the
-positional arguments, in the order the synopsis names them. `cluster` is
-present only on a page that documents a dashless flag cluster (`tar zcf`), so
-the page decides, not a list kept in the code. `section` is the section of
-the manual the page is in, so a card reads `sudo(8)` and not `sudo(1)`.
+Then embed the built corpus with credentials from your own Cloudflare account:
 
-Two things the corpus holds that a man page does not:
+```sh
+CLOUDFLARE_ACCOUNT_ID=your-account-id \
+CLOUDFLARE_API_TOKEN=your-workers-ai-token \
+  node ingest/embed.mjs .corpus/noble/pages --force
+```
 
-- **The shell's builtins.** `bash(1)` documents them in a section of its own,
-  and they have no page of their own, so each one becomes a page: `type(1)`
-  carries the flags `type` takes, and its citation is `bash(1) § Builtins`.
-- **The shell's own syntax.** The same page carries the manual's words for
-  the compound commands and the redirections: a `for` loop is explained with
-  what `bash(1)` says a `for` loop does, and `2>/dev/null` with what it says
-  about redirecting output. The `syntax` field holds them, keyed by the word
-  that starts the construct or by the redirection's operator.
-- **The names a distribution files a page under.** Ubuntu ships `awk` as
-  `mawk.1.gz` and `nc` as `nc.openbsd.1.gz`, so the page answers to the
-  command's own name too.
+The token needs Workers AI access. `--force` replaces existing vectors when
+switching models; omit it on subsequent runs to resume completed pages. Upload
+with `EMBED_MODEL='@cf/baai/bge-small-en-v1.5'` to label the manifest correctly.
+Using Qwen3 for this path instead requires updating `ingest/embed.mjs` to use
+Qwen3's model and document-input contract; changing an environment variable
+alone does not change that script's hardcoded BGE model.
 
-### Import: building a corpus
+Cloudflare currently includes 10,000 Neurons per day, resetting at 00:00 UTC.
+Corpus embedding and live query embedding share your account's allowance; a
+large corpus may need several days. Completed pages can be reused rather than
+embedded again. Check usage in the dashboard and consult
+[Workers AI pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/)
+for current quotas and paid usage. Page count alone does not determine cost:
+the model and the amount of text embedded matter.
 
-Ingestion reads a distribution's man pages and writes one JSON file per tool.
+**Own GPU.** Run a compatible embedding service on your machine and point
+`EMBED_URL` at it using the [HTTP ingestion instructions](#embed-documentation-for-retrieval).
+For the default Qwen3 deployment, serve the corresponding Qwen3 weights. The
+GPU only needs to be available while building or refreshing documents; upload
+the resulting JSON to R2, and live queries continue through Workers AI. This
+avoids document-embedding Neuron usage, while query embeddings still use quota.
+
+**CPU ingestion.** No GPU or embedding service is needed for the local BGE
+script, though the first run downloads model weights and ingestion can be slow:
+
+```sh
+node ingest/embed-local.mjs .corpus/noble/pages --force
+```
+
+Set the Worker to BGE with `mean` pooling as above. If using `--cls`, set
+`EMBED_POOLING` to `cls` too. This saves ingestion Neurons; live semantic queries
+still use Workers AI.
+
+**No Workers AI at all.** Removing the `ai` binding selects the existing word
+overlap fallback, which works from text chunks without query vectors. CPU
+ingestion can populate those chunks. To retain semantic retrieval through your
+own GPU or CPU service, implement an authenticated HTTP query-embedding call in
+`src/lib/retrieve.js` in place of `env.AI.run`, and adjust the no-`AI` fallback
+branch. The endpoint must be reachable from the deployed Worker and use the
+same embedding contract as the corpus. Setting `EMBED_URL` currently affects
+ingestion only.
+
+For every semantic path, match model weights, dimensions, pooling and the
+model's document/query instruction conventions. Different vector widths are
+discarded; incompatible vectors of the same width can silently rank badly.
+
+“All Neurons” here means **all embeddings**. Summaries, suggestions and chat
+still call DeepSeek directly and use its separate API key and billing. Moving
+generation to Workers AI also requires changing the model handlers and their
+streaming, structured-output and budget accounting. R2, Workers and Durable
+Objects have their own usage limits, separate from Neurons. You can leave out
+the DeepSeek key and run the documentation explainer alone.
+
+### Runtime configuration
+
+Current configuration:
+
+| Setting | Value / role |
+| --- | --- |
+| `DEEPSEEK_MODEL` | `deepseek-flash` for summaries, suggestions and authenticated chat |
+| `EMBED_MODEL` | `@cf/qwen/qwen3-embedding-0.6b` for production query embeddings |
+| `EMBED_POOLING` | `mean`; applies to the BGE retrieval path, not Qwen3 |
+| `DAILY_BUDGET_MICRO` | `200000` micro-USD ($0.20) of model-budget capacity, replenished over 24 hours |
+| `CORPUS_VERSION` | Cache version; bump when corpus data or explanation output changes |
+
+The budget uses the token-cost estimates in `src/worker/index.js`; it is an
+application guard rather than a Cloudflare account spending limit. Per-IP token
+buckets default to 5 model requests per minute and 120 uncached explanations per
+minute. Cached explanations and summaries bypass those request counters.
+
+## Architecture
+
+```text
+Browser → Hono Worker → tree-sitter Bash → corpus pages in R2 → explanation
+                    ↘ DeepSeek + retrieved excerpts → summary / suggestion
+                    ↘ Durable Objects → budget and per-IP rate limits
+```
+
+Astro builds static HTML and client assets; UnoCSS supplies styles. The browser
+renders the breakdown and routes connectors between tokens and entries. The
+Worker prefers lightweight corpus pages, loads only relevant option shards for
+large manuals, and caches recently read pages in memory. Explanation responses
+are cached for a day using a command hash, environment and corpus version.
+
+Retrieval needs no vector database. It reads the full pages for candidate tools,
+returns exact entries for flags named in a question, and ranks embedded chunks
+with cosine similarity. A fresh suggestion first finds candidate tools through
+a lexical index of page synopses. Duplicate excerpts across environments are
+removed. The model may still answer when no excerpts are available; its output
+is separate from the deterministic documentation breakdown.
+
+| Location | Responsibility |
+| --- | --- |
+| [`src/pages/index.astro`](src/pages/index.astro) | Page, mode picker, environment picker and examples |
+| [`src/client/app.js`](src/client/app.js) | Rendering, connectors, summaries, suggestions and URL state |
+| [`src/lib/parse.js`](src/lib/parse.js), [`tree.js`](src/lib/tree.js) | Lazy WASM parser and syntax-tree extraction |
+| [`src/lib/explain.js`](src/lib/explain.js), [`pages.js`](src/lib/pages.js) | Explanation segments, option matching and page paths |
+| [`src/lib/wrap.js`](src/lib/wrap.js), [`nesting.js`](src/lib/nesting.js) | Wrapped and nested commands |
+| [`src/lib/retrieve.js`](src/lib/retrieve.js), [`candidates.js`](src/lib/candidates.js) | Excerpt retrieval and fresh-suggestion candidates |
+| [`src/lib/shards.js`](src/lib/shards.js) | Split large option sets and select relevant shards |
+| [`src/worker/index.js`](src/worker/index.js) | API handlers, corpus reads and model calls |
+| [`src/worker/budget.js`](src/worker/budget.js), [`ratelimit.js`](src/worker/ratelimit.js) | Persistent budget and rate-limit buckets |
+| [`ingest/`](ingest/) | Ingestion, help capture, embeddings and R2 transfer |
+
+## API
+
+All endpoints accept `POST` requests with `Content-Type: application/json`.
+`env` defaults to `all` and must be an ID in
+[`src/lib/envs.js`](src/lib/envs.js).
+
+| Endpoint | Request fields | Response |
+| --- | --- | --- |
+| `/api/explain` | `cmd`, optional `env` | JSON breakdown, sources and gaps |
+| `/api/tldr` | `cmd`, optional `env` | Server-sent events with the model summary |
+| `/api/suggest` | `request`, optional `cmd` and `env` | JSON: `command`, `rationale`, `assumed`, `grounded` |
+| `/api/change` | `request`, string `cmd`, optional `env` | Compatibility alias for suggestions |
+| `/api/chat` | `cmd`, `messages`, optional `env` | Authenticated streamed chat; used by the Promptfoo harness |
+
+```sh
+curl http://localhost:8787/api/explain \
+  -H 'Content-Type: application/json' \
+  -d '{"cmd":"tar -zcf archive.tar.gz ./src","env":"ubuntu/24.04"}'
+```
+
+Chat requires `Authorization: Bearer <CHAT_TOKEN>`. Set it with
+`npx wrangler secret put CHAT_TOKEN` if exposing that endpoint. The test harness
+creates its own temporary token. Chat is not a conversation panel in the current
+frontend.
+
+## Build a corpus
+
+A corpus is documentation for one target environment. Full pages are stored as
+`<env>/<tool>.json`, with subcommands such as `git-status` using their own page
+when available. The runtime tries the longest matching subcommand path first.
+
+Pages carry `cmd`, `env`, `section`, `source`, `licence`, `synopsis`, option
+entries, option-value placeholders and operands. Optional fields include shell
+syntax, dashless-cluster support, descriptions and embedded `chunks`. Builtins
+and shell syntax are extracted from `bash(1)` and retain that citation.
+
+### Ingest man pages
+
+Install `mandoc`; Ubuntu package ingestion also uses `dpkg-deb`.
 
 ```sh
 sudo apt install mandoc
 
-# Ubuntu, from the release's .debs
-node ingest/ingest.mjs noble          # -> .corpus/noble/pages/*.json
+# Download and extract Ubuntu Noble packages.
+node ingest/ingest.mjs noble
+# Output: .corpus/noble/pages/
 
-# Any distribution, from a man tree you have on disk
-node ingest/ingest.mjs --env el9 --from-dir .corpus/el9/man
-```
-
-Ubuntu's package list lives at the top of `ingest/ingest.mjs`; extend it
-freely. It covers `main` and `universe`, because Ubuntu keeps half the tools
-people type out of the main archive. A Ubuntu 24.04 corpus is about 2300
-pages, before the shared Docker pages are added.
-
-Ingestion clears the directory it writes to: a corpus is a build, and a build
-starts from nothing. Copy the shared Docker pages in after it, not before.
-
-For a distribution whose man tree you have to build yourself, the shape is
-always the same — take `/usr/share/man` out of a container of that release.
-EL9 uses Jeff Geerling's systemd-enabled Rocky 9 image, which already carries
-the dnf and rpm pages; the install adds the rest.
-
-```sh
-docker run --rm -v "$PWD/.corpus/el9:/out" geerlingguy/docker-rockylinux9-ansible:latest bash -lc '
-  dnf -y swap coreutils-single coreutils
-  dnf -y swap curl-minimal curl
-  dnf -y install man-pages man-db findutils grep sed tar procps-ng iproute \
-    openssh-clients util-linux systemd git less rsync sudo gzip which \
-    make iputils openssl wget unzip e2fsprogs cmake python3 file diffutils \
-    lsof psmisc nmap-ncat traceroute gawk cronie dnf rpm >/dev/null
-  cp -a /usr/share/man /out/man'
+# Read another distribution's extracted man tree.
 node ingest/ingest.mjs --env el9 --from-dir .corpus/el9/man \
-  --source-base "https://www.mankier.com/{section}/{name}"
-```
+  --source-base 'https://www.mankier.com/{section}/{name}'
+# Output: .corpus/el9/pages/
 
-`cronie` carries `crontab(1)` and `cron(8)`, so they no longer need a separate
-download.
-
-Alpine ships its man pages in `-doc` subpackages. Take them from the release
-container:
-
-```sh
-docker run --rm -v "$PWD/.corpus/alpine:/out" alpine:3.22 sh -lc '
-  apk add --no-cache man-pages apk-tools-doc openrc-doc busybox-doc bash bash-doc
-  cp -a /usr/share/man /out/man'
 node ingest/ingest.mjs --env alpine/3.22 --from-dir .corpus/alpine/man \
-  --source-base "https://www.mankier.com/{section}/{name}"
+  --source-base 'https://www.mankier.com/{section}/{name}'
+# Output: .corpus/alpine/3.22/pages/
 ```
 
-The source base is either a directory mirror (`https://man7.org/linux/man-pages`
-gives `/man1/ls.1.html`) or a template with `{section}`, `{name}` and `{page}`.
-Mankier covers dnf, rpm, apk and OpenRC; man7 does not carry the distribution
-tools.
+The Ubuntu package list is maintained in
+[`ingest/ingest.mjs`](ingest/ingest.mjs). For other distributions, extract
+`/usr/share/man` from the matching release's packages or container first.
+Ingestion **clears its output directory**. Add shared or generated pages after
+this step.
 
-Caveats worth knowing before you start:
+Coverage follows the documentation you supply. Alpine's BusyBox applets often
+lack individual man pages; substituting GNU coreutils pages would describe
+different tools. PostgreSQL client wrappers similarly do not document the full
+client: use the versioned package's manuals. Docker and Percona pages can be
+built separately and copied into each target corpus after its main ingest.
 
-- **Alpine's core tools are BusyBox applets** and BusyBox ships no per-applet
-  page. Do not install `coreutils-doc` to get GNU pages: those describe tools
-  the Alpine reader may not be running. Only packages that genuinely ship a
-  page can be anchored; the rest are shown as gaps. `bash-doc` is included so
-  the shell's builtins and syntax have their bash(1) page.
-- **OpenRC has no `rc(8)` page of its own.** Ingestion writes `rc` as an alias
-  of `openrc(8)`, which is the same service manager; `rc-service`, `rc-update`
-  and the rest keep their own pages.
-- **The Rocky image ships `coreutils-single` and `curl-minimal`**, and both
-  conflict with the packages that carry the man pages. One conflicting
-  package fails the whole install, so swap them first, as the recipe above
-  does.
+### Capture help and subcommands
 
-**Docker** is a special case: the CLI reference is written as man pages, so
-`docker run` is `docker-run(1)`. The `docker-ce-cli` package ships them, and
-they are the same pages in every corpus:
+Help-based ingestion is implemented for tools whose documentation is not
+available as conventional man pages:
 
 ```sh
-node ingest/ingest.mjs --env docker --from-dir /path/to/docker/man
-cp .corpus/docker/pages/*.json .corpus/noble/pages/
-cp .corpus/docker/pages/*.json .corpus/el9/pages/
+# Requires an installed Go toolchain / kubectl binary.
+node ingest/go-help.mjs .corpus/noble/pages
+node ingest/kubectl-help.mjs .corpus/kubectl/pages
+cp .corpus/kubectl/pages/*.json .corpus/noble/pages/
+
+# Split documented COMMANDS entries into individual pages.
+node ingest/subcommands.mjs .corpus/noble/pages systemctl
+
+# Convert a tool's help output to a man page for later ingestion.
+/path/to/tool --help | node ingest/help-man.mjs \
+  --name tool --desc 'Description from the tool documentation.' > tool.1
 ```
 
-**Percona Toolkit** is not part of a base system. Percona's own repository
-carries the current package (3.7.2) with its man pages in section 1p; Ubuntu's
-universe package is older (3.2.1). Extract the man tree, ingest it as its own
-corpus, then copy the pages into each target:
+[`help-man.mjs`](ingest/help-man.mjs) also accepts `--man` for existing
+`--help-man` output. Help capture is tool-specific, not an automatic fallback for
+all missing commands. The kubectl generator clears its output directory, so
+generate into a separate directory before copying pages into a main corpus.
+
+### Embed documentation for retrieval
+
+**Match the corpus model to the runtime model.** Both Wrangler configurations
+currently select Qwen3. The embedding scripts retain BGE defaults, so running
+them without configuration does not build a matching Qwen3 corpus.
+
+For an HTTP embedding service serving the corresponding Qwen3 weights:
 
 ```sh
-curl -sSLO https://repo.percona.com/pt/apt/pool/main/p/percona-toolkit/percona-toolkit_3.7.2-1.noble_amd64.deb
-dpkg-deb -x percona-toolkit_3.7.2-1.noble_amd64.deb /tmp/percona-toolkit
-
-# Eight tools ship without a man page; build one from the tool's own help.
-BIN=/tmp/percona-toolkit/usr/bin
-MAN=/tmp/percona-toolkit/usr/share/man/man1
-"$BIN/pt-pg-summary" --help-man |
-  node ingest/help-man.mjs --man --name pt-pg-summary \
-    --desc "Collects information about a PostgreSQL cluster." > "$MAN/pt-pg-summary.1"
-"$BIN/pt-secure-collect" --help-man |
-  node ingest/help-man.mjs --man --name pt-secure-collect \
-    --desc "Collects, sanitizes, packs and encrypts data." > "$MAN/pt-secure-collect.1"
-pod2man "$BIN/pt-upgrade" > "$MAN/pt-upgrade.1"
-while IFS='|' read -r tool description; do
-  "$BIN/$tool" --help |
-    node ingest/help-man.mjs --name "$tool" --desc "$description" > "$MAN/$tool.1"
-done <<'LIST'
-pt-mongodb-index-check|Performs checks on MongoDB indexes.
-pt-mongodb-query-digest|Reports query usage statistics from the MongoDB query profiler.
-pt-mongodb-summary|Collects information about a MongoDB cluster.
-pt-galera-log-explainer|Merges and helps analyze Galera logs.
-pt-k8s-debug-collector|Collects debug data from a Kubernetes or OpenShift cluster.
-LIST
-gzip "$MAN"/*.1
-
-node ingest/ingest.mjs --env percona --from-dir /tmp/percona-toolkit/usr/share/man \
-  --source-base "https://docs.percona.com/percona-toolkit/{name}.html"
-cp .corpus/percona/pages/*.json .corpus/noble/pages/
-cp .corpus/percona/pages/*.json .corpus/el9/pages/
-cp .corpus/percona/pages/*.json .corpus/alpine/3.22/pages/
+EMBED_URL=http://your-embedding-server:8080 \
+EMBED_MODEL=Qwen/Qwen3-Embedding-0.6B \
+  node ingest/embed-http.mjs .corpus/noble/pages --force
 ```
 
-Like Docker, copy the pages in **after** an ingest: ingestion clears the
-directory it writes to. The tool set changes between releases, so after a
-refresh remove the pages of tools the release dropped from both the corpora
-and the bucket.
+The service must implement `/v1/embeddings` and return indexed vectors plus a
+`dim` field. Documents are embedded without the query instruction; the Worker
+adds its Linux-documentation instruction to Qwen3 queries. The HTTP script
+records model, prompt and pooling metadata on the pages.
 
-**PostgreSQL clients** need the versioned package, not the wrapper.
-`postgresql-client-common` ships `psql(1)` and friends as wrapper pages that
-document only `--cluster`; the real pages live under
-`/usr/share/postgresql/16/man` in `postgresql-client-16`. Ingest those into
-the Ubuntu corpus after the main build:
+The BGE alternatives remain available:
 
-```sh
-apt-get download postgresql-client-16
-dpkg-deb -x postgresql-client-16_*.deb /tmp/pg-client
-node ingest/ingest.mjs --env postgresql \
-  --from-dir /tmp/pg-client/usr/share/postgresql/16/man \
-  --source-base "https://manpages.ubuntu.com/manpages/noble/en"
-cp .corpus/postgresql/pages/*.json .corpus/noble/pages/
-```
+| Script | Embedding path |
+| --- | --- |
+| `node ingest/embed.mjs <pages>` | Workers AI BGE; needs `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` with Workers AI access |
+| `node ingest/embed-local.mjs <pages>` | Local BGE through the installed Transformers dependency; mean pooling, or `--cls` |
+| `node ingest/embed-http.mjs <pages>` | Configurable HTTP service through `EMBED_URL`, `EMBED_MODEL`, `EMBED_POOLING` and `EMBED_PROMPT` |
 
-### Embeddings: giving chat and the recommender their excerpts
+For BGE corpora, set the Worker's `EMBED_MODEL` to
+`@cf/baai/bge-small-en-v1.5` and match `EMBED_POOLING` to the corpus. Do not mix
+models, vector dimensions or pooling modes. Without compatible vectors,
+production retrieval can still return exact flag entries but cannot rank those
+chunks semantically.
 
-`retrieve()` scores the `chunks[]` a page carries. Ingesting writes the text;
-the vectors come from the same Workers AI model the worker uses:
+### Prepare and upload
 
 ```sh
-CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... \
-  node ingest/embed.mjs .corpus/noble/pages
-```
+# Remove empty or unreachable pages, then generate lightweight pages/shards.
+node ingest/prune.mjs .corpus/noble/pages
+node ingest/lite.mjs .corpus/noble/pages
 
-The token needs **Workers AI: Read**. Pages that already carry chunks are
-skipped; `--force` re-embeds them. Without this pass, chat and the recommender
-still answer — the prompt says no excerpts were retrieved — but nothing is
-grounded in the corpus.
-
-A corpus can also be embedded locally, without the Workers AI quota:
-
-```sh
-npm install --save-dev @huggingface/transformers
-node ingest/embed-local.mjs .corpus/noble/pages
-```
-
-It runs the same bge-small weights with **mean pooling**; that matches Workers
-AI's vectors at ~0.96–0.999 cosine. CLS pooling is ~0.90 and would rank
-differently. Runtime question embeddings still use the Worker's AI binding, so
-one small call per chat or suggestion remains.
-
-The Worker's `EMBED_POOLING` variable must match the corpus. `mean` is
-Cloudflare's default; `cls` is the model-native mode Cloudflare recommends.
-`ingest/embed-http.mjs` embeds through the LAN bge-small server (CLS);
-`embed-local.mjs --cls` is the CPU fallback; `npm run eval:retrieval -- --pooling cls`
-evaluates the CLS corpus. Never mix the two pooling modes.
-
-### The suggestion index
-
-A suggestion starts with no command, so retrieval has no tools to restrict
-itself to. `ingest/index.mjs` writes one synopsis per page (`_index.json`,
-uploaded with the corpus); the worker scores it against the request and reads
-the best pages before calling the model. `upload.mjs` rebuilds it before every
-upload; run it alone when you want the index without a deploy:
-
-```sh
-node ingest/index.mjs .corpus/noble/pages
-```
-
-Without the index a fresh suggestion still answers, but with no excerpts.
-
-### Export: moving a corpus in and out of R2
-
-The site reads the corpus out of R2, so a rebuilt corpus is not live until it
-is uploaded: the pages on disk and the pages the site answers from are two
-different things. Ingesting changes the first; uploading changes the second.
-
-`ingest/upload.mjs` pushes pages into the bucket; `ingest/export.mjs` pulls
-them back out as JSON files. The two are mirrors of each other.
-
-```sh
-# Into the local R2 store, for `npm run dev:local`
+# With npm run dev:local running in another terminal:
 node ingest/upload.mjs ubuntu/24.04 .corpus/noble/pages --local
 
-# Into the real bucket
-node ingest/upload.mjs ubuntu/24.04 .corpus/noble/pages
+# Publish to the real R2 bucket instead:
+EMBED_MODEL='@cf/qwen/qwen3-embedding-0.6b' \
+  node ingest/upload.mjs ubuntu/24.04 .corpus/noble/pages
+```
 
-# Back out to a directory
+Lite pages omit retrieval vectors and chunks. Large option sets are sharded so
+explanation requests fetch only the options they need. Full pages remain
+available for retrieval, and the Worker falls back to them when no lite page
+exists. Regenerate lite pages after changing the underlying documentation.
+
+Uploads rebuild `_index.json` (the synopsis index) and `_meta.json` (the build
+manifest). Set `EMBED_MODEL` during upload to label the manifest correctly; this
+does not re-embed the pages. Local uploads use the running dev server's R2 API,
+falling back to the slower Wrangler CLI. `RUNGKAI_DEV_URL` overrides its address.
+
+Remote uploads use the AWS CLI's S3 sync when `CLOUDFLARE_ACCOUNT_ID`,
+`R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` are exported; otherwise they use
+Wrangler. `--delete` removes remote keys absent from the source directory on the
+S3 path only, so use it only with a complete intended corpus.
+
+```sh
+# Export a corpus back to disk.
 node ingest/export.mjs ubuntu/24.04 ./pages --local
 node ingest/export.mjs ubuntu/24.04 ./pages --remote
 ```
 
-`--local` goes through the dev server's own R2 API, which is seconds for a
-full corpus. `--remote` uses the bucket's S3 API and needs
-`CLOUDFLARE_ACCOUNT_ID`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` in the
-environment.
+Remote export requires the AWS CLI and the same S3 credentials. Bump
+`CORPUS_VERSION` in the applicable Wrangler configuration after a corpus or
+explainer change, then redeploy or restart. Locally, also clear
+`.wrangler/state/v3/cache` to discard cached answers.
 
-`upload.mjs` rebuilds `_index.json` (the suggestion index) and `_meta.json`
-(the build manifest) before it sends anything, so they cannot drift from the
-corpus. `--delete` mirrors the directory into that environment's prefix and
-removes keys the corpus no longer has; it is off by default because a wrong
-directory would empty the bucket.
+To add an environment, register its ID in `src/lib/envs.js` and upload pages
+under that prefix. A registry entry can reuse another corpus with a `corpus`
+property. A registry entry alone does not provide documentation.
 
-`node ingest/prune.mjs .corpus/<env>/pages` drops pages no command can reach
-(names `pagePath` rejects) and pages with no synopsis, description, options or
-operands — they only add noise to search.
-
-After changing a corpus, **bump `CORPUS_VERSION` in `wrangler.jsonc`** — it is
-part of the explainer cache key, so without the bump a stale answer survives
-for a day. Locally, also clear `.wrangler/state/v3/cache` and restart the dev
-server.
-
-The same goes for a change to the explainer itself: the cached answer is the
-one the old code wrote, so a new card shape stays invisible for a day unless
-the version moves. The version is the only knob: bump it whenever the answer
-would look different.
-
-### Adding an environment
-
-The dropdown is a registry, not a code path. A corpus is data.
-
-```js
-// src/lib/envs.js
-{ id: "ubuntu/24.04", label: "ubuntu 24.04" },
-{ id: "el9", label: "el9 (rocky/alma/rhel)" },
-```
-
-An entry may point at another entry's corpus when two systems ship the same
-packages, so a distribution that is Ubuntu underneath needs no second ingest:
-
-```js
-{ id: "pop/24.04", label: "pop!_os 24.04", corpus: "ubuntu/24.04" },
-```
-
-## Not built yet
-
-- `--help` captures for tools that ship no man page.
-- FreeBSD and Ubuntu 22.04 corpora.
-- A licence index page per corpus. Ingestion extracts each page's COPYRIGHT
-  section into `licence`, but nothing renders it yet.
-
-## Documentation
-
-- `GLOSSARY.md` — the vocabulary. Explainer, Corpus, Anchor, Gap.
-- `PRODUCT.md` — who this is for and what it promises.
-- `DESIGN.md` — the visual system, and why each thing looks the way it does.
-- `docs/adr/` — the decisions, and what was rejected.
-
-## Tests
+## Tests and evaluation
 
 ```sh
-npm test
+npm test                 # Node logic and fixture tests
+npm run build            # Static site build
+npm run test:browser     # Build plus Chrome UI/motion tests
 ```
 
-Pure logic only: argument matching, value and operand extraction, the budget
-bucket, the shell syntax notes, and the corpus environment registry.
-
-One suite is the one that matters most: `test/one-liners.test.mjs` takes a
-list of popular one-liners — `test/fixtures/one-liners.json` — and asserts
-that none of them leaves a flag the corpus does not document, or a tool the
-corpus has no page for. A flag that the page does not list is shown as
-undocumented, and a popular command that always shows one is a bug in the
-corpus, not in the reader's typing.
-
-The suite runs against `test/fixtures/corpus` — a sample of the pages the
-one-liners use, without the pages' own prose — so it runs on a fresh clone.
-When a corpus has been built, the same list is run against it as well, and
-that run is the one that catches a corpus that has gone stale:
+The Node suite covers parsing, matching, operands, subcommands, nested commands,
+retrieval, input validation, streaming, caching, budgeting and rate limiting.
+Fixtures allow the main suite to run on a fresh clone; additional corpus checks
+run when their local corpus files are present. The browser suite requires
+`google-chrome`, or a path supplied through `CHROME_BIN`.
 
 ```sh
-node ingest/ingest.mjs noble        # build a corpus
-node test/make-fixture.mjs           # refresh the sample from it
-npm test
+node test/make-fixture.mjs   # Refresh the committed sample from a built corpus.
+npm run eval:retrieval       # Retrieval hits@4 against local corpus files.
+npm run eval:retrieval:local # Local BGE embedding variant.
 ```
 
-### Retrieval eval
+Retrieval evaluation reads `.env` and defaults to BGE. The Cloudflare path needs
+`CLOUDFLARE_ACCOUNT_ID` and `CF_WORKERS_AI_TOKEN`; the local path downloads BGE
+weights. It supports `--corpus-base`, `--model`, `--pooling` and HTTP-service
+options. Treat it as a separate evaluation setup: its defaults and corpus paths
+are not automatically taken from the deployed Wrangler configuration.
 
-`npm run eval:retrieval` scores the actual `retrieve()` path: it reads the
-local corpora, embeds each question with the same model the Worker uses, and
-reports hits@4 against an expected page and flag. It needs a built corpus and
-`CLOUDFLARE_ACCOUNT_ID` / `CF_WORKERS_AI_TOKEN` in `.env`; it is not part of
-`npm test` because it talks to Workers AI.
-
-Questions live in `test/retrieval/questions.json`. A question names its tools
-when it is about a command, or sets `"fresh": true` to exercise the suggestion
-index. Change the corpus, the chunker or the retrieval threshold, then run it
-before and after: the number is the point.
-
-### Model and prompt-injection tests
-
-The model endpoints have their own suite. It needs the `promptfoo` CLI on PATH
-and both keys in `.env` (gitignored):
+Model tests require the `promptfoo` CLI and `DEEPSEEK_API_KEY` /
+`OLLAMA_API_KEY` in `.env`:
 
 ```sh
-DEEPSEEK_API_KEY=...   # the app's model
-OLLAMA_API_KEY=...     # the judge, Ollama Cloud — local only, never a Worker secret
+npm run test:promptfoo       # Curated injection cases
+npm run test:redteam         # Generated prompt-extraction probes
+npm run test:promptfoo:all   # Both model suites
+npm run test:all             # Node tests plus both model suites; excludes browser
 ```
 
-Then:
+These make paid model calls against a temporary local Worker with isolated R2
+and Durable Object state. See the [Promptfoo guide](test/promptfoo/README.md)
+for fixtures, judge configuration and limitations.
 
-```sh
-npm run test:all
-```
+## Data handling
 
-This runs the 114 pure-logic tests, the **31 curated prompt-injection cases**,
-and **10 generated prompt-extraction probes**. It builds the site, starts a
-throwaway `wrangler dev` on :8788 with a fresh local R2 and Durable Object
-state, raises only that process's rate limits and daily budget, seeds four
-poisoned man pages, runs both Promptfoo evals, then shuts the server down. The
-real rate limits, budget and R2 are untouched.
+There are no accounts or server-side command-history records. State does exist:
+R2 holds documentation; Durable Objects persist budget and rate-limit buckets;
+explanations and summaries are cached. Permalinks include command text in the
+URL and browser history, and the frontend stores the latest command's toolbar
+status in browser `sessionStorage`.
 
-- `npm run test:promptfoo:all` — the two Promptfoo layers only.
-- `npm run test:promptfoo` — the curated 31 cases only.
-- `npm run test:redteam` — the generated probes only.
-- `npm run test:browser` — the Chrome motion/UI suite, separate because it
-  launches Chrome.
+Model features send their input and selected documentation to DeepSeek.
+Production semantic retrieval sends an instructed query to Workers AI. Security
+audit logs record suspected prompt injection, invalid chat roles and rate-limit
+events; flagged input excerpts are limited to 500 characters, alongside a hashed
+address, user-agent excerpt, route and timestamp. Worker observability and
+invocation logs are enabled in the deployment configuration.
 
-The target is DeepSeek; the judge is **GLM 5.3 on Ollama Cloud**, a different
-family, through a small adapter that normalises its verdict. A full run costs a
-few cents or uses your Ollama Cloud quota. The curated cases cover direct
-overrides, encodings, multi-turn chat, tldr, and injected man-page excerpts.
-The generated layer currently covers `prompt-extraction`; `hijacking`,
-`system-prompt-override` and the jailbreak strategies are remote-generation-only
-in Promptfoo and need Promptfoo Cloud, an OpenAI key, or a self-hosted
-`PROMPTFOO_REMOTE_GENERATION_URL`.
+## Contributing and further documentation
 
-Results open with `promptfoo view` (default http://localhost:15500). See
-[`test/promptfoo/README.md`](test/promptfoo/README.md) for the cases, the
-rubrics and the judge.
+- [Product](PRODUCT.md): intended users and product principles.
+- [Glossary](GLOSSARY.md): Explainer, Corpus, Anchor and Gap.
+- [Design](DESIGN.md): visual system and interaction decisions.
+- [Architecture decisions](docs/adr/): anchoring, per-environment corpora,
+  server state and retrieval without a vector database.
 
-## Notes for contributors
+For parser changes, preserve the Worker startup constraints in
+`src/lib/parse.js`: initialise lazily, hide `globalThis.process` only during
+`Parser.init`, and supply the precompiled WASM module through `instantiateWasm`.
+Runtime WASM compilation and top-level asynchronous parser startup do not work
+in this Worker setup.
 
-Three things in the parser are load-bearing and easy to break:
-
-1. No top-level `await` in `src/lib/parse.js` — workerd refuses module startup
-   that waits on a promise, so the parser initialises lazily on first use.
-2. `globalThis.process` is hidden for `Parser.init` only — workerd exposes
-   `process`, which sends web-tree-sitter down its Node path into
-   `createRequire(import.meta.url)` and throws.
-3. `instantiateWasm` hands Emscripten the precompiled module — Workers forbid
-   compiling wasm at runtime, so the `Data` module rule cannot be used.
+Coverage depends on the built corpus. FreeBSD and Ubuntu 22.04 are not in the
+current environment picker, and there is no rendered per-corpus licence index.
 
 ## Licence
 
-MIT. See [`LICENSE`](LICENSE).
+By [Fauzuwan Nazri](https://fauzuwan.my). The code is MIT licensed; see
+[LICENSE](LICENSE) and [NOTICE](NOTICE). Keep the copyright notice and attribution
+when redistributing.
 
-Fork it, deploy it in your own Cloudflare account or environment, change
-whatever you like. There is no requirement to contribute anything back, and no
-CLA. The only ask is that the credit stays: keep the copyright notice and
-[`NOTICE`](NOTICE) alongside your copy, and credit Fauzuwan Nazri as the
-author.
-
-Two things in this repository are not covered by the MIT licence, and both
-keep their own terms:
-
-- **The fonts** in `public/fonts/` — Orbitron under the SIL Open Font
-  Licence, Ubuntu Sans under the Ubuntu Font Licence. Each licence ships next
-  to the font it covers.
-- **The corpus** — a corpus is built from a distribution's man pages, and
-  those pages carry the licence of the software they document. Where a page
-  has a `COPYRIGHT` section, ingestion keeps it in the page's `licence` field.
-  The MIT licence covers this code; it does not relicense the documentation it
-  reads.
+Fonts retain their own licences: Orbitron uses the SIL Open Font Licence and
+Ubuntu Sans uses the Ubuntu Font Licence, both included in `public/fonts/`.
+Corpus documentation retains its upstream licences; ingestion preserves a
+page's COPYRIGHT section when available. The code's MIT licence does not
+relicense those pages.
