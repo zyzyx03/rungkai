@@ -8,7 +8,7 @@ as a gap. The base explanation is deterministic; optional AI features summarise
 the command or suggest one from a plain-language request.
 
 <p align="center">
-  <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/home.png"><img src="docs/images/home.png" width="1200" alt="Rungkai home screen with the command input, environment picker and ready-to-use SSH examples." /></a>
+  <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/home.png"><img src="docs/images/home.png" width="760" alt="Rungkai home screen with the command input, environment picker and ready-to-use SSH examples." /></a>
 </p>
 
 ## Feature demos
