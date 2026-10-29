@@ -33,7 +33,7 @@
   "vars": {
     "DEEPSEEK_MODEL": "deepseek-flash",
     "DAILY_BUDGET_MICRO": "200000",
-    "CORPUS_VERSION": "50",
+    "CORPUS_VERSION": "51",
     "EMBED_POOLING": "mean",
     "EMBED_MODEL": "@cf/qwen/qwen3-embedding-0.6b"
   }
