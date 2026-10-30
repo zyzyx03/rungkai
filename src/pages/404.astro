@@ -1,0 +1,108 @@
+---
+import "../styles/global.css";
+
+// The classic 11×8 invader, one character per pixel.
+const SPRITE = [
+  "..X.....X..",
+  "...X...X...",
+  "..XXXXXXX..",
+  ".XX.XXX.XX.",
+  "XXXXXXXXXXX",
+  "X.XXXXXXX.X",
+  "X.X.....X.X",
+  "...XX.XX...",
+];
+const PIXELS = SPRITE.flatMap((row, y) =>
+  [...row].flatMap((cell, x) => (cell === "X" ? [[x, y]] : [])),
+);
+// Role colours, the red gap last: the hole in the documentation.
+const COLORS = ["#9ece6a", "#bb9af7", "#38bdf8", "#ff9e64", "#f7768e"];
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>404 — no such page — Rungkai</title>
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#16171f" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preload" href="/fonts/Orbitron.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/UbuntuSans-normal-latin.woff2" as="font" type="font/woff2" crossorigin />
+  </head>
+  <body class="min-h-screen font-sans text-ink antialiased">
+    <main class="mx-auto flex min-h-screen w-full max-w-[900px] flex-col px-6 py-8 sm:py-10">
+      <header class="flex items-center justify-between gap-4">
+        <a href="/" class="flex items-center gap-2 text-inherit no-underline" aria-label="Rungkai home">
+          <svg class="seal text-ink" viewBox="7 14 114 98" aria-hidden="true" focusable="false">
+            <g class="seal-half seal-half-left"><path d="M39 18 11 38v47l28 23V18Z" /></g>
+            <g class="seal-half seal-half-right"><path d="M89 18l28 20v47l-28 23V18Z" /></g>
+            <g class="seal-face text-cyan"><path d="m47 53 8 9-8 9" /><path d="M60 73h8" /><path d="m81 53-8 9 8 9" /></g>
+          </svg>
+          <span class="font-display text-[clamp(2.15rem,4.6vw,3rem)] font-bold uppercase leading-none tracking-[0.04em] text-ink">rungkai<span class="text-cyan">.</span></span>
+        </a>
+        <span class="hidden shrink-0 font-mono text-[12.5px] text-ink-dim sm:inline">404 · no such page</span>
+      </header>
+
+      <section class="flex flex-1 flex-col items-center justify-center py-14 text-center">
+        <div class="invaders" aria-hidden="true">
+          {COLORS.map((color, i) => (
+            <svg class="invader" viewBox="0 0 11 8" style={`color:${color};--i:${i}`} shape-rendering="crispEdges">
+              {PIXELS.map(([x, y]) => <rect x={x} y={y} width="1" height="1" fill="currentColor" />)}
+            </svg>
+          ))}
+        </div>
+
+        <h1 class="mt-7 font-display text-[clamp(3.5rem,10vw,5.5rem)] font-bold uppercase leading-none tracking-[0.04em] text-ink">404<span class="text-cyan">.</span></h1>
+        <p class="mt-5 text-[17px] leading-snug text-ink">A wildcard ate this page.</p>
+        <p class="mt-2 max-w-[46ch] text-[15px] leading-[1.7] text-ink-muted">
+          No man page lives at this address. Take revenge on whatever glob did it — explain a command instead.
+        </p>
+
+        <div class="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
+          <a class="btn-neon" href="/">explain a command</a>
+          <a class="link" id="back" href="/">or go back to where you were</a>
+        </div>
+      </section>
+
+      <footer class="flex items-center justify-between gap-4 font-mono text-[12.5px] text-ink-dim">
+        <span>exit 404</span>
+        <span class="flex gap-4 sm:gap-5"><span>level 404</span><span>lives 3</span><span>points 0</span></span>
+      </footer>
+    </main>
+
+    <script is:inline>
+      const back = document.getElementById("back");
+      back.addEventListener("click", (event) => {
+        if (history.length > 1) {
+          event.preventDefault();
+          history.back();
+        }
+      });
+    </script>
+
+    <style>
+      .invaders {
+        display: flex;
+        align-items: flex-end;
+        gap: clamp(10px, 3vw, 26px);
+      }
+      .invader {
+        width: clamp(30px, 5vw, 46px);
+        height: auto;
+        animation: invader-bob 0.9s steps(2, end) infinite alternate;
+        animation-delay: calc(var(--i) * 0.14s);
+      }
+      @keyframes invader-bob {
+        from { transform: translateY(0); }
+        to { transform: translateY(-6px); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .invader { animation: none; }
+      }
+    </style>
+  </body>
+</html>
