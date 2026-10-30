@@ -258,8 +258,9 @@ minute. Cached explanations and summaries bypass those request counters.
 ## Architecture
 
 <p align="center">
-  <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/diagrams/architecture.drawio"><img src="docs/images/architecture.avif" width="1000" alt="Rungkai architecture: the browser calls a Hono Worker, which parses with tree-sitter, reads man pages from R2, calls DeepSeek for summaries and suggestions, and keeps its budget and rate limits in Durable Objects." /></a>
+  <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/architecture.avif"><img src="docs/images/architecture.avif" width="1000" alt="Rungkai architecture: the browser calls a Hono Worker, which parses with tree-sitter, reads man pages from R2, calls DeepSeek for summaries and suggestions, and keeps its budget and rate limits in Durable Objects." /></a>
 </p>
+<p align="center"><a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/diagrams/architecture.drawio"><sub>drawio source</sub></a></p>
 
 Astro builds static HTML and client assets; UnoCSS supplies styles. The browser
 renders the breakdown and routes connectors between tokens and entries. The
