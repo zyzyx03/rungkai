@@ -325,6 +325,9 @@ const exampleHref = (cmd, env) =>
             <Fragment set:html={EXTERNAL_ICON} />
           </a>
         </nav>
+        <p class="mt-2 w-full text-[12px] leading-[1.7] text-ink-muted">
+          <span class="font-display text-[11px] uppercase tracking-[0.14em] text-cyan">privacy</span><span class="text-cyan">.</span>{" "}No accounts, no analytics, and no cookies set by the app; Cloudflare keeps standard request metrics. Server state is limited to short-lived per-IP rate-limit counters, a global spend counter, and a 24-hour answer cache keyed by a hash of the command. AI features send the command to DeepSeek and Cloudflare Workers AI. Suspicious input is logged with a hashed IP and at most 500 characters. Permalinks carry the command in the URL — don’t paste secrets.
+        </p>
       </footer>
     </main>
 
