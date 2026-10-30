@@ -2,3 +2,7 @@
 # response lets the font request reuse the preload instead of revalidating it.
 /fonts/*
   Cache-Control: public, max-age=604800
+
+# Astro hashes every asset name, so a cached file can never go stale.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable

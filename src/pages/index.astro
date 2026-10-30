@@ -23,7 +23,7 @@ const exampleHref = (cmd, env) =>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Rungkai — a command line, read like a man page</title>
-    <meta name="description" content="Break a shell one-liner into tokens, route each documented flag to the man page that defines it, and see exactly where the documentation ends." />
+    <meta name="description" content="Explain any shell command, token by token. Every flag and argument is matched to the man page that defines it; undocumented tokens are marked, not guessed." />
     <link rel="canonical" href="https://sh.fauzuwan.my/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
@@ -32,7 +32,7 @@ const exampleHref = (cmd, env) =>
     <meta property="og:site_name" content="Rungkai" />
     <meta property="og:url" content="https://sh.fauzuwan.my/" />
     <meta property="og:title" content="Rungkai — a command line, read like a man page" />
-    <meta property="og:description" content="Break a shell one-liner into tokens, route each documented flag to the man page that defines it, and see exactly where the documentation ends." />
+    <meta property="og:description" content="Explain any shell command, token by token. Every flag and argument is matched to the man page that defines it; undocumented tokens are marked, not guessed." />
     <meta property="og:image" content="https://sh.fauzuwan.my/og.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
@@ -40,9 +40,23 @@ const exampleHref = (cmd, env) =>
     <meta property="og:image:alt" content="Rungkai: the wordmark and tagline above the command ss -tlnp | sort -k4, coloured token by token." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Rungkai — a command line, read like a man page" />
-    <meta name="twitter:description" content="Break a shell one-liner into tokens, route each documented flag to the man page that defines it, and see exactly where the documentation ends." />
+    <meta name="twitter:description" content="Explain any shell command, token by token. Every flag and argument is matched to the man page that defines it; undocumented tokens are marked, not guessed." />
     <meta name="twitter:image" content="https://sh.fauzuwan.my/og.png" />
     <meta name="twitter:image:alt" content="Rungkai: the wordmark and tagline above the command ss -tlnp | sort -k4, coloured token by token." />
+    <script is:inline type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Rungkai",
+        "url": "https://sh.fauzuwan.my/",
+        "description": "Explain any shell command, token by token. Every flag and argument is matched to the man page that defines it; undocumented tokens are marked, not guessed.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Any",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "fauzuwan", "url": "https://fauzuwan.my/" }
+      }
+    </script>
     <meta name="theme-color" content="#16171f" />
     <link rel="preload" href="/fonts/Orbitron.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/UbuntuSans-normal-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -65,7 +79,7 @@ const exampleHref = (cmd, env) =>
             <h1 class="font-display text-[clamp(2.15rem,4.6vw,3rem)] font-bold uppercase leading-none tracking-[0.04em] text-ink">rungkai<span class="text-cyan">.</span></h1>
           </a>
         </div>
-        <p class="mx-auto mt-5 text-[17px] leading-snug text-ink">Understand every part of your command.</p>
+        <h2 class="mx-auto mt-5 text-[17px] font-normal leading-snug text-ink">Understand every part of your command.</h2>
         <p class="mx-auto mt-1.5 text-[15px] leading-snug text-ink-muted">Trace each token back to its documentation.</p>
       </section>
 
