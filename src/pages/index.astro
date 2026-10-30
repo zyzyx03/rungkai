@@ -4,6 +4,7 @@ import { ENVIRONMENTS } from "../lib/envs.js";
 import { MAN_PAGE_ICON, EXTERNAL_ICON } from "../lib/icons.js";
 import { SAMPLE_GROUPS } from "../lib/examples.js";
 import EnvGlyph from "../components/EnvGlyph.astro";
+import ThemeControls from "../components/ThemeControls.astro";
 
 // A mark per picker row; el9 is labelled rocky/alma/rhel and gets the Rocky peak.
 const GLYPHS = {
@@ -59,6 +60,29 @@ const exampleHref = (cmd, env) =>
       }
     </script>
     <meta name="theme-color" content="#16171f" />
+    <script is:inline>
+      // Follow the system until the reader chooses; the stored choice wins.
+      (() => {
+        const media = matchMedia("(prefers-color-scheme: light)");
+        let saved = null;
+        try {
+          saved = localStorage.getItem("rungkai-theme");
+        } catch {}
+        const set = (theme) => {
+          document.documentElement.dataset.theme = theme;
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", theme === "light" ? "#e1e2e7" : "#16171f");
+        };
+        set(saved === "light" || saved === "dark" ? saved : media.matches ? "light" : "dark");
+        media.addEventListener("change", (event) => {
+          let current = null;
+          try {
+            current = localStorage.getItem("rungkai-theme");
+          } catch {}
+          if (!current) set(event.matches ? "light" : "dark");
+        });
+      })();
+    </script>
     <link rel="preload" href="/fonts/Orbitron.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/UbuntuSans-normal-latin.woff2" as="font" type="font/woff2" crossorigin />
     <script is:inline>
@@ -68,7 +92,10 @@ const exampleHref = (cmd, env) =>
     </script>
   </head>
   <body class="min-h-screen font-sans text-ink antialiased">
-    <main class="mx-auto max-w-[1080px] px-6 pb-24">
+    <main class="relative mx-auto max-w-[1080px] px-6 pb-24">
+      <div class="pointer-events-none absolute inset-x-6 top-2 z-50 mx-auto flex max-w-[900px] justify-end sm:top-5">
+        <div class="pointer-events-auto"><ThemeControls /></div>
+      </div>
       <section class="pt-12 pb-7 text-center">
         <div class="flex items-center justify-center gap-2">
           <a id="home-link" href="/" class="flex items-center justify-center gap-2 text-inherit no-underline" aria-label="Rungkai home">

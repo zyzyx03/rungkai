@@ -505,8 +505,9 @@ for fixtures, judge configuration and limitations.
 There are no accounts or server-side command-history records. State does exist:
 R2 holds documentation; Durable Objects persist budget and rate-limit buckets;
 explanations and summaries are cached. Permalinks include command text in the
-URL and browser history, and the frontend stores the latest command's toolbar
-status in browser `sessionStorage`.
+URL and browser history; the frontend stores the latest command's toolbar
+status in browser `sessionStorage` and the reader's light/dark choice in
+`localStorage`.
 
 Model features send their input and selected documentation to DeepSeek.
 Production semantic retrieval sends an instructed query to Workers AI. Security

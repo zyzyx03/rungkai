@@ -47,24 +47,110 @@ html[data-initial-command] #status:not([data-restored]) { visibility: hidden; }
   --lane: 22px;
 }
 
+/* The palette lives in one place so a theme switch is a selector, not a
+   second stylesheet. Dark is the shipped Tokyo Night; light is Tokyo Night
+   Day, the blog's light theme, with the role colours darkened until each
+   clears AA on the page wash. The -rgb channels exist for UnoCSS, whose
+   opacity modifiers need channels rather than a finished colour. */
+:root {
+  --paper: #16171f;
+  --paper-2: #1a1b26;
+  --paper-3: #202233;
+  --paper-deep: #181921;
+  --ink: #eef0f6;
+  --ink-muted: #a9b1d6;
+  --ink-dim: #7f88ad;
+  --ink-soft: #8b93b8;
+  --ink-flash: #c0c8e3;
+  --prose: #b8c0e0;
+  --rule: #292b3a;
+  --blue: #7aa2f7;
+  --purple: #bb9af7;
+  --cyan: #38bdf8;
+  --green: #9ece6a;
+  --orange: #ff9e64;
+  --signal: #f7768e;
+  --glass: rgba(41, 46, 66, 0.62);
+  --glass-2: rgba(41, 46, 66, 0.55);
+  --shadow: rgba(0, 0, 0, 0.95);
+  --shadow-soft: rgba(0, 0, 0, 0.9);
+  --slab-shadow: rgba(23, 24, 33, 0.42);
+  --selection: rgba(122, 162, 247, 0.9);
+
+  --paper-rgb: 22 23 31;
+  --paper-2-rgb: 26 27 38;
+  --paper-3-rgb: 32 34 51;
+  --ink-rgb: 238 240 246;
+  --ink-muted-rgb: 169 177 214;
+  --ink-dim-rgb: 127 136 173;
+  --rule-rgb: 41 43 58;
+  --blue-rgb: 122 162 247;
+  --purple-rgb: 187 154 247;
+  --cyan-rgb: 56 189 248;
+  --green-rgb: 158 206 106;
+  --orange-rgb: 255 158 100;
+  --signal-rgb: 247 118 142;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --paper: #e1e2e7;
+  --paper-2: #f5f6fa;
+  --paper-3: #e2e4f0;
+  --paper-deep: #e4e5ea;
+  --ink: #3760bf;
+  --ink-muted: #565f89;
+  --ink-dim: #5c6591;
+  --ink-soft: #58618c;
+  --ink-flash: #2f4a8f;
+  --prose: #3b4261;
+  --rule: #c4c8da;
+  --blue: #3d59a1;
+  --purple: #6f36c9;
+  --cyan: #006580;
+  --green: #3f6428;
+  --orange: #8a4a00;
+  --signal: #b81b43;
+  --glass: rgba(245, 246, 250, 0.72);
+  --glass-2: rgba(245, 246, 250, 0.88);
+  --shadow: rgba(55, 96, 191, 0.18);
+  --shadow-soft: rgba(55, 96, 191, 0.14);
+  --slab-shadow: rgba(55, 96, 191, 0.1);
+  --selection: #3d59a1;
+
+  --paper-rgb: 225 226 231;
+  --paper-2-rgb: 245 246 250;
+  --paper-3-rgb: 226 228 240;
+  --ink-rgb: 55 96 191;
+  --ink-muted-rgb: 86 95 137;
+  --ink-dim-rgb: 92 101 145;
+  --rule-rgb: 196 200 218;
+  --blue-rgb: 61 89 161;
+  --purple-rgb: 111 54 201;
+  --cyan-rgb: 0 101 128;
+  --green-rgb: 63 100 40;
+  --orange-rgb: 138 74 0;
+  --signal-rgb: 184 27 67;
+}
+
 body {
   /* The floating command is as wide as the window, and the window is wider
      than the page by the width of its scrollbar: the page is clipped rather
      than given a scrollbar of its own. */
   overflow-x: hidden;
   /* Tokyo Night page wash, same stops as the blog. */
-  background-color: #16171f;
+  background-color: var(--paper);
   background-image:
-    radial-gradient(circle at 30% 18%, rgba(122, 162, 247, 0.08), transparent 40%),
-    radial-gradient(circle at 68% 12%, rgba(187, 154, 247, 0.06), transparent 40%),
-    linear-gradient(180deg, #16171f 0%, #1a1b26 20%, #181921 55%, #16171f 100%);
+    radial-gradient(circle at 30% 18%, color-mix(in srgb, var(--blue) 8%, transparent), transparent 40%),
+    radial-gradient(circle at 68% 12%, color-mix(in srgb, var(--purple) 6%, transparent), transparent 40%),
+    linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 20%, var(--paper-deep) 55%, var(--paper) 100%);
   background-attachment: fixed;
   overflow-y: scroll;
 }
 
-::selection { background: rgba(122, 162, 247, 0.9); color: #16171f; }
+::selection { background: var(--selection); color: var(--paper); }
 
-:focus-visible { outline: 2px solid #7aa2f7; outline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 
 [hidden] { display: none !important; }
 
@@ -73,9 +159,9 @@ body {
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
-* { scrollbar-width: thin; scrollbar-color: rgba(169, 177, 214, 0.22) transparent; }
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink-muted) 22%, transparent) transparent; }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-thumb { background: rgba(169, 177, 214, 0.2); border-radius: 8px; }
+*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink-muted) 20%, transparent); border-radius: 8px; }
 *::-webkit-scrollbar-track { background: transparent; }
 
 /* Token-to-entry routing: an SVG overlay inside .results. */
@@ -139,7 +225,7 @@ body {
   z-index: -1;
   opacity: 0;
   transition: opacity 0.22s ease;
-  background-color: rgba(23, 24, 33, 0.42);
+  background-color: var(--slab-shadow);
   -webkit-backdrop-filter: blur(14px) saturate(1.15);
   backdrop-filter: blur(14px) saturate(1.15);
 }
@@ -155,7 +241,7 @@ body {
   height: var(--band, 34px);
   opacity: 0;
   transition: opacity 0.22s ease;
-  background: linear-gradient(180deg, rgba(23, 24, 33, 0.42), transparent);
+  background: linear-gradient(180deg, var(--slab-shadow), transparent);
   pointer-events: none;
 }
 .synopsis.is-floating::after { opacity: 1; }
@@ -188,8 +274,8 @@ body {
 /* Entries are man-page definitions: a term, its kind, a hanging
    description, and the page it came from. */
 .entry {
-  background-color: color-mix(in srgb, var(--role, #7aa2f7) 7%, #1a1b26);
-  border-color: color-mix(in srgb, var(--role, #7aa2f7) 30%, transparent);
+  background-color: color-mix(in srgb, var(--role, var(--blue)) 7%, var(--paper-2));
+  border-color: color-mix(in srgb, var(--role, var(--blue)) 30%, transparent);
 }
 .entry h3 { font-weight: 600; }
 .results.has-intro .entry {
@@ -207,18 +293,18 @@ body {
   font-size: 11px;
   line-height: 1.4;
   letter-spacing: 0.06em;
-  color: color-mix(in srgb, var(--role, #7aa2f7) 70%, #a9b1d6);
+  color: color-mix(in srgb, var(--role, var(--blue)) 70%, var(--ink-muted));
 }
 .kind-tag {
   padding: 0.1rem 0.4rem;
-  border: 1px solid color-mix(in srgb, var(--role, #7aa2f7) 34%, transparent);
+  border: 1px solid color-mix(in srgb, var(--role, var(--blue)) 34%, transparent);
   border-radius: 2px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   line-height: 1.4;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--role, #7aa2f7) 85%, #eef0f6);
+  color: color-mix(in srgb, var(--role, var(--blue)) 85%, var(--ink));
 }
 .entry-body {
   margin-top: 0.7rem;
@@ -227,7 +313,7 @@ body {
   font-size: 16px;
   line-height: 1.65;
   text-wrap: pretty;
-  color: #b8c0e0;
+  color: var(--prose);
 }
 .entry-ref {
   display: flex;
@@ -239,7 +325,7 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12.5px;
   /* References stay secondary while remaining readable on active panels. */
-  color: #a9b1d6;
+  color: var(--ink-muted);
 }
 /* The source is a chip: a filled box with the man page's mark, so the
    provenance reads as something you can open, not as another word. */
@@ -249,16 +335,16 @@ body {
   gap: 0.4rem;
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
-  background: rgba(238, 240, 246, 0.06);
-  color: #a9b1d6;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink-muted);
   font-size: 11px;
   line-height: 1.4;
   white-space: nowrap;
   transition: background-color 0.18s ease, color 0.18s ease;
 }
 .source-chip:hover {
-  background: rgba(56, 189, 248, 0.14);
-  color: #38bdf8;
+  background: color-mix(in srgb, var(--cyan) 14%, transparent);
+  color: var(--cyan);
 }
 .source-chip svg { width: 12px; height: 12px; flex-shrink: 0; }
 .source-chip svg:last-child { width: 10px; height: 10px; opacity: 0.7; }
@@ -272,8 +358,8 @@ body {
   gap: 0.4rem;
   padding: 0.18rem 0.5rem 0.18rem 0.2rem;
   border-radius: 999px;
-  background: rgba(238, 240, 246, 0.06);
-  color: #a9b1d6;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  color: var(--ink-muted);
   font-size: 11px;
   line-height: 1.4;
   text-decoration: none;
@@ -281,8 +367,8 @@ body {
   transition: background-color 0.18s ease, color 0.18s ease;
 }
 .author-chip:hover {
-  background: rgba(56, 189, 248, 0.14);
-  color: #38bdf8;
+  background: color-mix(in srgb, var(--cyan) 14%, transparent);
+  color: var(--cyan);
 }
 .author-mark {
   display: grid;
@@ -290,23 +376,23 @@ body {
   width: 1.2rem;
   height: 1.2rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, #38bdf8 0%, #7aa2f7 100%);
-  color: #16171f;
+  background: linear-gradient(135deg, var(--cyan) 0%, var(--blue) 100%);
+  color: var(--paper);
   font-family: "Orbitron", sans-serif;
   font-size: 0.6rem;
   font-weight: 700;
   line-height: 1;
 }
 .author-name {
-  color: #eef0f6;
+  color: var(--ink);
   font-family: "Orbitron", sans-serif;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
-.author-dot { color: #38bdf8; }
-.author-chip:hover .author-name { color: #38bdf8; }
+.author-dot { color: var(--cyan); }
+.author-chip:hover .author-name { color: var(--cyan); }
 .author-chip svg { width: 9px; height: 9px; opacity: 0.65; }
 .author-chip:hover svg { opacity: 0.9; }
 
@@ -318,14 +404,14 @@ body {
 .results.hovering .token:not(.is-active) { opacity: .65; filter: blur(.3px); }
 .results.hovering .entry:not(.is-active) { opacity: .4; filter: blur(1.4px); }
 .token.is-active { color: var(--token-color); text-shadow: 0 0 12px var(--token-color); }
-.entry.is-active { background-color: color-mix(in srgb, var(--role, #7aa2f7) 15%, #202233); }
-.entry.is-flash { background-color: color-mix(in srgb, var(--role, #7aa2f7) 24%, #202233); }
+.entry.is-active { background-color: color-mix(in srgb, var(--role, var(--blue)) 15%, var(--paper-3)); }
+.entry.is-flash { background-color: color-mix(in srgb, var(--role, var(--blue)) 24%, var(--paper-3)); }
 /* The brighter selection wash needs brighter reference and role text too. */
 .entry.is-flash .entry-ref,
-.entry.is-flash .source-chip { color: #c0c8e3; }
+.entry.is-flash .source-chip { color: var(--ink-flash); }
 .entry:is(.is-active, .is-flash) .kind-tag,
 .entry:is(.is-active, .is-flash) .value-tag {
-  color: color-mix(in srgb, var(--role, #7aa2f7) 70%, #eef0f6);
+  color: color-mix(in srgb, var(--role, var(--blue)) 70%, var(--ink));
 }
 .connectors g { transition: opacity .18s ease, filter .18s ease; }
 .results.hovering .connectors g:not(.is-active) { opacity: 0; }
@@ -333,14 +419,14 @@ body {
 .connectors g.is-active circle { filter: drop-shadow(0 0 7px var(--path-color)); }
 
 /* Frosted glass for the command slab. */
-#cmd { caret-color: #38bdf8; }
+#cmd { caret-color: var(--cyan); }
 .glass {
-  background-color: rgba(41, 46, 66, 0.62);
-  background-image: linear-gradient(180deg, rgba(238, 240, 246, 0.09), rgba(238, 240, 246, 0.02) 22%, transparent 55%);
+  background-color: var(--glass);
+  background-image: linear-gradient(180deg, color-mix(in srgb, var(--ink) 9%, transparent), color-mix(in srgb, var(--ink) 2%, transparent) 22%, transparent 55%);
   -webkit-backdrop-filter: blur(20px) saturate(1.15);
   backdrop-filter: blur(20px) saturate(1.15);
-  border: 1px solid rgba(238, 240, 246, 0.16);
-  box-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(238, 240, 246, 0.1);
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  box-shadow: 0 24px 60px -28px var(--shadow), inset 0 1px 0 color-mix(in srgb, var(--ink) 10%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -362,10 +448,10 @@ body {
 .kbd-cap {
   flex-shrink: 0;
   padding: 0.05rem 0.35rem;
-  border: 1px solid rgba(238, 240, 246, 0.14);
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
   border-radius: 4px;
-  background: rgba(238, 240, 246, 0.05);
-  color: #a9b1d6;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   line-height: 1.5;
@@ -378,35 +464,35 @@ body {
   align-items: center;
   gap: 0.55rem;
   padding: 0.45rem 0.8rem;
-  border: 1px solid rgba(238, 240, 246, 0.13);
+  border: 1px solid color-mix(in srgb, var(--ink) 13%, transparent);
   border-radius: 6px;
   background: transparent;
-  color: #a9b1d6;
+  color: var(--ink-muted);
   font-family: Ubuntu Sans, Ubuntu, ui-sans-serif, sans-serif;
   font-size: 14px;
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
 }
 .tldr-button:hover {
-  border-color: rgba(56, 189, 248, 0.45);
-  background: rgba(56, 189, 248, 0.07);
-  color: #eef0f6;
+  border-color: color-mix(in srgb, var(--cyan) 45%, transparent);
+  background: color-mix(in srgb, var(--cyan) 7%, transparent);
+  color: var(--ink);
 }
 .tldr-button[aria-expanded="true"] {
-  border-color: rgba(56, 189, 248, 0.45);
-  background: rgba(56, 189, 248, 0.07);
-  color: #eef0f6;
+  border-color: color-mix(in srgb, var(--cyan) 45%, transparent);
+  background: color-mix(in srgb, var(--cyan) 7%, transparent);
+  color: var(--ink);
 }
 .tldr-button:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
 .tldr {
   margin-top: 0.6rem;
   padding: 0.7rem 0.9rem;
-  border: 1px solid rgba(56, 189, 248, 0.16);
+  border: 1px solid color-mix(in srgb, var(--cyan) 16%, transparent);
   border-radius: 6px;
-  background: rgba(56, 189, 248, 0.045);
+  background: color-mix(in srgb, var(--cyan) 4.5%, transparent);
 }
 .tldr-head {
   display: flex;
@@ -419,7 +505,7 @@ body {
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #38bdf8;
+  color: var(--cyan);
 }
 /* The warning the model led with. A filled box in the signal colour, the
    language of the source chip: this is the one thing on the page that is
@@ -429,8 +515,8 @@ body {
   margin: 0.7rem 0 0;
   padding: 0.18rem 0.5rem;
   border-radius: 4px;
-  background: rgba(247, 118, 142, 0.16);
-  color: #f7768e;
+  background: color-mix(in srgb, var(--signal) 16%, transparent);
+  color: var(--signal);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11.5px;
   line-height: 1.4;
@@ -441,7 +527,7 @@ body {
    hairline and its halo, the sheen, and no drop shadow — the slab floats, this
    sits in the flow. */
 #suggestion {
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.06), 0 0 16px -8px rgba(56, 189, 248, 0.45), inset 0 1px 0 rgba(238, 240, 246, 0.1);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cyan) 6%, transparent), 0 0 16px -8px color-mix(in srgb, var(--cyan) 45%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ink) 10%, transparent);
 }
 
 /* The panel folds to its command: the reasoning is the part the reader can
@@ -480,17 +566,17 @@ body {
   line-height: 1.65;
   max-width: 68ch;
   text-wrap: pretty;
-  color: #b8c0e0;
+  color: var(--prose);
 }
 #suggestion-rationale {
   font-size: 16px;
   line-height: 1.65;
   text-wrap: pretty;
 }
-#suggestion-rationale:not(.text-signal) { color: #b8c0e0; }
+#suggestion-rationale:not(.text-signal) { color: var(--prose); }
 #suggestion-basis,
 #suggestion-ground,
-#suggestion-assumed { color: #a9b1d6; }
+#suggestion-assumed { color: var(--ink-muted); }
 /* The bar that stands for the words the model is still writing. It is the
    slab's own frame, lit: a rail of neon with the light travelling along it,
    so the reader sees the model work rather than a dead panel. */
@@ -501,9 +587,9 @@ body {
   width: 58%;
   height: 0.9em;
   border-radius: 2px;
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.1), rgba(56, 189, 248, 0.42), rgba(56, 189, 248, 0.1));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cyan) 10%, transparent), color-mix(in srgb, var(--cyan) 42%, transparent), color-mix(in srgb, var(--cyan) 10%, transparent));
   background-size: 200% 100%;
-  box-shadow: 0 0 14px -3px rgba(56, 189, 248, 0.7);
+  box-shadow: 0 0 14px -3px color-mix(in srgb, var(--cyan) 70%, transparent);
   animation: shimmer 1.5s ease-in-out infinite;
 }
 @keyframes shimmer {
@@ -519,7 +605,7 @@ body {
   /* The row runs past the column, so it says so: a thin cyan scrollbar under
      the tabs, and a fade at whichever edge has more behind it. */
   scrollbar-width: thin;
-  scrollbar-color: rgba(56, 189, 248, 0.38) transparent;
+  scrollbar-color: color-mix(in srgb, var(--cyan) 38%, transparent) transparent;
   padding-bottom: 9px;
   --fade-left: 0px;
   --fade-right: 30px;
@@ -534,42 +620,42 @@ body {
 .cat-tabs::-webkit-scrollbar { height: 5px; }
 .cat-tabs::-webkit-scrollbar-track { background: transparent; }
 .cat-tabs::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.38);
+  background: color-mix(in srgb, var(--cyan) 38%, transparent);
   border-radius: 999px;
 }
-.cat-tabs::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.65); }
+.cat-tabs::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--cyan) 65%, transparent); }
 .cat-tab {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   flex-shrink: 0;
   padding: 0.4rem 0.75rem;
-  border: 1px solid rgba(238, 240, 246, 0.14);
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
   border-radius: 6px;
   background: transparent;
-  color: #a9b1d6;
+  color: var(--ink-muted);
   font-family: Ubuntu Sans, Ubuntu, ui-sans-serif, sans-serif;
   font-size: 13.5px;
   white-space: nowrap;
   cursor: pointer;
   transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
 }
-.cat-tab:hover { border-color: rgba(238, 240, 246, 0.3); color: #eef0f6; }
+.cat-tab:hover { border-color: color-mix(in srgb, var(--ink) 30%, transparent); color: var(--ink); }
 .cat-tab[aria-selected="true"] {
-  border-color: rgba(56, 189, 248, 0.55);
-  background: rgba(56, 189, 248, 0.1);
-  color: #38bdf8;
+  border-color: color-mix(in srgb, var(--cyan) 55%, transparent);
+  background: color-mix(in srgb, var(--cyan) 10%, transparent);
+  color: var(--cyan);
 }
 /* Blue is focus everywhere on the site; cyan is the selected tab. */
 .cat-tab:focus-visible {
-  outline: 2px solid #7aa2f7;
+  outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
 
 .cat-panel {
-  border: 1px solid rgba(238, 240, 246, 0.12);
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   border-radius: 10px;
-  background: rgba(26, 27, 38, 0.5);
+  background: color-mix(in srgb, var(--paper-2) 50%, transparent);
   padding: 1.25rem 1.25rem 0.5rem;
 }
 .cat-head {
@@ -583,18 +669,18 @@ body {
   font-size: 20px;
   font-weight: 600;
   line-height: 1.2;
-  color: #eef0f6;
+  color: var(--ink);
 }
 .cat-desc {
   margin: 0.35rem 0 0;
   font-size: 13px;
-  color: #a9b1d6;
+  color: var(--ink-muted);
 }
 .cat-count {
   flex-shrink: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12.5px;
-  color: #7f88ad;
+  color: var(--ink-dim);
 }
 .cat-list { margin: 1rem 0 0; padding: 0; list-style: none; }
 .ex-row {
@@ -607,7 +693,7 @@ body {
 .ex-row-label {
   display: block;
   font-size: 13px;
-  color: #a9b1d6;
+  color: var(--ink-muted);
 }
 .ex-row-cmd {
   display: block;
@@ -615,21 +701,21 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13.5px;
   line-height: 1.6;
-  color: #eef0f6;
+  color: var(--ink);
   overflow-wrap: anywhere;
   transition: color 0.18s ease;
 }
-.ex-row-cmd:hover { color: #38bdf8; }
+.ex-row-cmd:hover { color: var(--cyan); }
 .ex-go {
   flex-shrink: 0;
   display: grid;
   place-items: center;
   width: 2.25rem;
   height: 2.25rem;
-  border: 1px solid rgba(238, 240, 246, 0.16);
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
   border-radius: 6px;
   background: transparent;
-  color: #a9b1d6;
+  color: var(--ink-muted);
   cursor: pointer;
   transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
 }
@@ -637,11 +723,11 @@ body {
 .ex-row:hover .ex-go,
 .ex-go:hover {
   border-color: transparent;
-  background: #38bdf8;
-  color: #16171f;
+  background: var(--cyan);
+  color: var(--paper);
 }
 .ex-go:focus-visible {
-  outline: 2px solid #38bdf8;
+  outline: 2px solid var(--cyan);
   outline-offset: 2px;
 }
 
@@ -651,8 +737,8 @@ body {
 /* Neon frame from the blog's stash page: thin cyan hairline, soft halo, and a
    focused ring that lights the whole box. */
 .neon-frame {
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.06), 0 0 16px -8px rgba(56, 189, 248, 0.45);
+  border: 1px solid color-mix(in srgb, var(--cyan) 28%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cyan) 6%, transparent), 0 0 16px -8px color-mix(in srgb, var(--cyan) 45%, transparent);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 /* The neon ring is the focus indicator; the default outline would double it. */
@@ -661,11 +747,11 @@ input.neon-frame:focus-visible {
   outline: none;
 }
 .neon-frame:focus-within {
-  border-color: rgba(56, 189, 248, 0.75);
+  border-color: color-mix(in srgb, var(--cyan) 75%, transparent);
   box-shadow:
-    0 0 0 3px rgba(56, 189, 248, 0.16),
-    0 0 22px -2px rgba(56, 189, 248, 0.5),
-    inset 0 0 16px rgba(56, 189, 248, 0.1);
+    0 0 0 3px color-mix(in srgb, var(--cyan) 16%, transparent),
+    0 0 22px -2px color-mix(in srgb, var(--cyan) 50%, transparent),
+    inset 0 0 16px color-mix(in srgb, var(--cyan) 10%, transparent);
 }
 
 /* Mode picker above the one-line box: explain a command, or ask for one. */
@@ -674,10 +760,10 @@ input.neon-frame:focus-visible {
   align-items: center;
   gap: 0.45rem;
   padding: 0.35rem 0.7rem;
-  border: 1px solid rgba(56, 189, 248, 0.28);
+  border: 1px solid color-mix(in srgb, var(--cyan) 28%, transparent);
   border-radius: 6px;
-  background: rgba(41, 46, 66, 0.55);
-  color: #eef0f6;
+  background: var(--glass-2);
+  color: var(--ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 11px;
   letter-spacing: 0.1em;
@@ -687,13 +773,13 @@ input.neon-frame:focus-visible {
 }
 .mode-trigger:hover,
 .mode-trigger[aria-expanded="true"] {
-  border-color: rgba(56, 189, 248, 0.65);
-  box-shadow: 0 0 14px -4px rgba(56, 189, 248, 0.6);
+  border-color: color-mix(in srgb, var(--cyan) 65%, transparent);
+  box-shadow: 0 0 14px -4px color-mix(in srgb, var(--cyan) 60%, transparent);
 }
 .mode-trigger-icon {
   width: 14px;
   height: 14px;
-  color: #38bdf8;
+  color: var(--cyan);
 }
 .mode-trigger[data-mode="explain"] .icon-suggest,
 .mode-trigger[data-mode="suggest"] .icon-explain {
@@ -702,7 +788,7 @@ input.neon-frame:focus-visible {
 .mode-trigger-chevron {
   width: 10px;
   height: 10px;
-  color: #7f88ad;
+  color: var(--ink-dim);
 }
 .mode-menu {
   position: absolute;
@@ -711,22 +797,22 @@ input.neon-frame:focus-visible {
   z-index: 30;
   width: min(360px, calc(100vw - 3rem));
   padding: 0.95rem 0.95rem 0.6rem;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid color-mix(in srgb, var(--cyan) 25%, transparent);
   border-radius: 0.7rem;
-  box-shadow: 0 30px 60px -25px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 30px 60px -25px var(--shadow-soft);
 }
 .mode-menu-title {
   font-family: Orbitron, Ubuntu Sans, sans-serif;
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #eef0f6;
+  color: var(--ink);
 }
 .mode-menu-hint {
   margin-top: 0.2rem;
   padding-bottom: 0.7rem;
   font-size: 12.5px;
-  color: #a9b1d6;
+  color: var(--ink-muted);
 }
 .mode-option {
   display: flex;
@@ -738,46 +824,46 @@ input.neon-frame:focus-visible {
   border: 0;
   border-radius: 0.45rem;
   background: transparent;
-  color: #eef0f6;
+  color: var(--ink);
   text-align: left;
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
 .mode-option:hover {
-  background: rgba(238, 240, 246, 0.06);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 .mode-option:focus-visible {
   outline: none;
-  background: rgba(56, 189, 248, 0.12);
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.75);
+  background: color-mix(in srgb, var(--cyan) 12%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cyan) 75%, transparent);
 }
 #env-menu [role="option"]:focus-visible {
   outline: none;
-  background: rgba(56, 189, 248, 0.12);
-  box-shadow: inset 0 0 0 2px rgba(56, 189, 248, 0.75);
+  background: color-mix(in srgb, var(--cyan) 12%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--cyan) 75%, transparent);
 }
 .mode-dot {
   flex-shrink: 0;
   width: 0.4rem;
   height: 0.4rem;
   margin-top: 0.5rem;
-  border: 1px solid #7f88ad;
+  border: 1px solid var(--ink-dim);
   border-radius: 999px;
 }
 .mode-option[aria-selected="true"] .mode-dot {
-  border-color: #38bdf8;
-  background: #38bdf8;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
+  border-color: var(--cyan);
+  background: var(--cyan);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--cyan) 70%, transparent);
 }
 .mode-option-icon {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
   margin-top: 0.1rem;
-  color: #7f88ad;
+  color: var(--ink-dim);
 }
 .mode-option[aria-selected="true"] .mode-option-icon {
-  color: #38bdf8;
+  color: var(--cyan);
 }
 .mode-option-title {
   display: block;
@@ -789,7 +875,7 @@ input.neon-frame:focus-visible {
   margin-top: 0.15rem;
   font-size: 12.5px;
   line-height: 1.5;
-  color: #a9b1d6;
+  color: var(--ink-muted);
 }
 /* The AI mark: the same four-pointed star the suggest mode wears, drawn in
    the family's stroke. One mark, wherever the model is involved. */
@@ -797,7 +883,7 @@ input.neon-frame:focus-visible {
   display: inline-flex;
   align-items: center;
   margin-left: 0.3rem;
-  color: #8b93b8;
+  color: var(--ink-soft);
   vertical-align: -0.1em;
 }
 .ai-mark { width: 13px; height: 13px; }
@@ -895,8 +981,8 @@ input.neon-frame:focus-visible {
   margin-top: 0.9rem;
   padding: 0.55rem 0.8rem;
   border-radius: 6px;
-  background: rgba(247, 118, 142, 0.1);
-  color: #f7768e;
+  background: color-mix(in srgb, var(--signal) 10%, transparent);
+  color: var(--signal);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12.5px;
   line-height: 1.4;
@@ -915,7 +1001,7 @@ input.neon-frame:focus-visible {
 /* A wrong-language paste gets a small mascot, not a red rule. */
 .error-card {
   padding: 0.8rem 0;
-  color: #f7768e;
+  color: var(--signal);
   font-size: 14px;
   line-height: 1.6;
 }
@@ -926,3 +1012,62 @@ input.neon-frame:focus-visible {
   vertical-align: -0.1em;
 }
 .error-mascot svg { width: 100%; height: 100%; }
+
+/* Light theme. The tokens swap the surfaces and ink; the page wash and the
+   glass sheen are gradients, so they are re-stated for the day palette. */
+:root[data-theme="light"] body {
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(circle at 30% 18%, rgba(122, 162, 247, 0.1), transparent 40%),
+    radial-gradient(circle at 68% 12%, rgba(187, 154, 247, 0.08), transparent 40%),
+    linear-gradient(180deg, #e8eaef 0%, #e4e5ea 55%, var(--paper) 100%);
+}
+:root[data-theme="light"] .glass {
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(255, 255, 255, 0.35) 22%,
+    transparent 55%
+  );
+}
+
+/* Theme and source controls. The GitHub mark is a placeholder until the
+   repository has a public URL. */
+.theme-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper-2) 72%, transparent);
+  color: var(--ink-muted);
+  font: inherit;
+  backdrop-filter: blur(8px);
+  transition: color 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+button.icon-btn { cursor: pointer; }
+.icon-btn:hover {
+  color: var(--cyan);
+  border-color: color-mix(in srgb, var(--cyan) 40%, transparent);
+}
+.icon-btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+.icon-btn svg { width: 15px; height: 15px; }
+.icon-btn.is-placeholder { cursor: default; }
+.icon-btn.is-placeholder:hover {
+  color: var(--ink-dim);
+  border-color: color-mix(in srgb, var(--ink) 14%, transparent);
+}
+.theme-sun { display: block; }
+.theme-moon { display: none; }
+:root[data-theme="light"] .theme-sun { display: none; }
+:root[data-theme="light"] .theme-moon { display: block; }

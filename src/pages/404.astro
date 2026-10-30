@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import ThemeControls from "../components/ThemeControls.astro";
 
 // The classic 11×8 invader, one character per pixel.
 const SPRITE = [
@@ -16,7 +17,7 @@ const PIXELS = SPRITE.flatMap((row, y) =>
   [...row].flatMap((cell, x) => (cell === "X" ? [[x, y]] : [])),
 );
 // Role colours, the red gap last: the hole in the documentation.
-const COLORS = ["#9ece6a", "#bb9af7", "#38bdf8", "#ff9e64", "#f7768e"];
+const COLORS = ["var(--green)", "var(--purple)", "var(--cyan)", "var(--orange)", "var(--signal)"];
 ---
 <!doctype html>
 <html lang="en">
@@ -26,6 +27,29 @@ const COLORS = ["#9ece6a", "#bb9af7", "#38bdf8", "#ff9e64", "#f7768e"];
     <title>404 — no such page — Rungkai</title>
     <meta name="robots" content="noindex" />
     <meta name="theme-color" content="#16171f" />
+    <script is:inline>
+      // Follow the system until the reader chooses; the stored choice wins.
+      (() => {
+        const media = matchMedia("(prefers-color-scheme: light)");
+        let saved = null;
+        try {
+          saved = localStorage.getItem("rungkai-theme");
+        } catch {}
+        const set = (theme) => {
+          document.documentElement.dataset.theme = theme;
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", theme === "light" ? "#e1e2e7" : "#16171f");
+        };
+        set(saved === "light" || saved === "dark" ? saved : media.matches ? "light" : "dark");
+        media.addEventListener("change", (event) => {
+          let current = null;
+          try {
+            current = localStorage.getItem("rungkai-theme");
+          } catch {}
+          if (!current) set(event.matches ? "light" : "dark");
+        });
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
@@ -44,7 +68,10 @@ const COLORS = ["#9ece6a", "#bb9af7", "#38bdf8", "#ff9e64", "#f7768e"];
           </svg>
           <span class="font-display text-[clamp(2.15rem,4.6vw,3rem)] font-bold uppercase leading-none tracking-[0.04em] text-ink">rungkai<span class="text-cyan">.</span></span>
         </a>
-        <span class="hidden shrink-0 font-mono text-[12.5px] text-ink-dim sm:inline">404 · no such page</span>
+        <div class="flex items-center gap-3">
+          <span class="hidden shrink-0 font-mono text-[12.5px] text-ink-dim sm:inline">404 · no such page</span>
+          <ThemeControls />
+        </div>
       </header>
 
       <section class="flex flex-1 flex-col items-center justify-center py-14 text-center">

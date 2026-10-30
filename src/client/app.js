@@ -61,13 +61,13 @@ const styles = getComputedStyle(document.documentElement);
 const LANE = parseFloat(styles.getPropertyValue("--lane")) || 22;
 
 const COLORS = {
-  tool: "#9ece6a",
-  builtin: "#ff9e64",
-  arg: "#bb9af7",
-  syntax: "#38bdf8",
-  gap: "#f7768e",
-  unknown: "#f7768e",
-  operand: "#7f88ad",
+  tool: "var(--green)",
+  builtin: "var(--orange)",
+  arg: "var(--purple)",
+  syntax: "var(--cyan)",
+  gap: "var(--signal)",
+  unknown: "var(--signal)",
+  operand: "var(--ink-dim)",
 };
 
 // A link from the corpus is followed only when it leads somewhere on the web.
@@ -769,6 +769,10 @@ function reconcileRoutes(overlay, groups) {
           if (!child.hasAttribute(attr.name)) previous.removeAttribute(attr.name);
         }
         for (const attr of child.attributes) previous.setAttribute(attr.name, attr.value);
+        // Role colours are CSS variables in inline styles, so they re-resolve
+        // on a theme switch; carry them across when a route is rebuilt.
+        if (child.hasAttribute("style")) previous.setAttribute("style", child.getAttribute("style"));
+        else previous.removeAttribute("style");
       } else if (previous) {
         previous.replaceWith(child);
       } else {
@@ -793,7 +797,7 @@ function fade(length) {
 function segment(d, colour, opacity) {
   const path = document.createElementNS(svgNS, "path");
   path.setAttribute("d", d);
-  path.setAttribute("stroke", colour);
+  path.style.stroke = colour;
   path.setAttribute("stroke-opacity", String(opacity));
   path.setAttribute("pathLength", "1");
   return path;
@@ -829,7 +833,7 @@ function dot(cx, cy, r, color) {
   circle.setAttribute("cx", String(cx));
   circle.setAttribute("cy", String(cy));
   circle.setAttribute("r", String(r));
-  circle.setAttribute("fill", color);
+  circle.style.fill = color;
   return circle;
 }
 
