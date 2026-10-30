@@ -15,38 +15,40 @@ the command or suggest one from a plain-language request.
 
 Each tile is a looping capture of the running app. Click a demo for a closer look.
 
+<div align="center">
 <table>
   <tr>
     <td align="center" width="50%">
-      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/explainer-demo.gif"><img src="docs/images/explainer-demo-420.gif" width="420" alt="A command and its flag connected to documentation cards." /></a><br />
+      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/explainer-demo.gif"><img src="docs/images/explainer-demo-360.gif" width="360" alt="A command and its flag connected to documentation cards." /></a><br />
       <strong>Explain</strong> · trace tokens to their sources
     </td>
     <td align="center" width="50%">
-      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/feature-bahasa-melayu.gif"><img src="docs/images/feature-bahasa-melayu-420.gif" width="420" alt="A Bahasa Melayu request for files over 100MB produces a find command, rationale and assumptions." /></a><br />
+      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/feature-bahasa-melayu.gif"><img src="docs/images/feature-bahasa-melayu-360.gif" width="360" alt="A Bahasa Melayu request for files over 100MB produces a find command, rationale and assumptions." /></a><br />
       <strong>Bahasa Melayu</strong> · ask for a command in your own words
     </td>
   </tr>
   <tr>
     <td align="center">
-      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/feature-nested.gif"><img src="docs/images/feature-nested-420.gif" width="420" alt="sudo ss -l is broken down into the wrapper, nested command and listening flag." /></a><br />
+      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/feature-nested.gif"><img src="docs/images/feature-nested-360.gif" width="360" alt="sudo ss -l is broken down into the wrapper, nested command and listening flag." /></a><br />
       <strong>Nested commands</strong> · follow what a wrapper runs
     </td>
     <td align="center">
-      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/feature-environments.gif"><img src="docs/images/feature-environments-420.gif" width="420" alt="Opening the environment picker and switching the command documentation from Ubuntu 24.04 to EL9." /></a><br />
+      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/feature-environments.gif"><img src="docs/images/feature-environments-360.gif" width="360" alt="Opening the environment picker and switching the command documentation from Ubuntu 24.04 to EL9." /></a><br />
       <strong>Environments</strong> · read the matching documentation
     </td>
   </tr>
   <tr>
     <td align="center">
-      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/feature-summary.gif"><img src="docs/images/feature-summary-420.gif" width="420" alt="Opening a streamed summary of rm -rf ./old-build reveals a destructive warning above the documentation breakdown." /></a><br />
+      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/feature-summary.gif"><img src="docs/images/feature-summary-360.gif" width="360" alt="Opening a streamed summary of rm -rf ./old-build reveals a destructive warning above the documentation breakdown." /></a><br />
       <strong>Plain-English summary</strong> · see what the command changes
     </td>
     <td align="center">
-      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/feature-gaps.gif"><img src="docs/images/feature-gaps-420.gif" width="420" alt="An invented tar option is shown as undocumented rather than given an explanation." /></a><br />
+      <a href="https://git.zyzyx.cc/zyzyx/rungkai/raw/branch/main/docs/images/feature-gaps.gif"><img src="docs/images/feature-gaps-360.gif" width="360" alt="An invented tar option is shown as undocumented rather than given an explanation." /></a><br />
       <strong>Visible gaps</strong> · know where documentation ends
     </td>
   </tr>
 </table>
+</div>
 
 Bahasa Melayu requests work in Suggest mode; the interface, manual excerpts
 and the captured model response are in English. Suggestions and summaries need
