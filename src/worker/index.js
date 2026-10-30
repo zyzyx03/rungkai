@@ -10,6 +10,7 @@ import { audit, looksLikeInjection } from "../lib/audit.js";
 import { resolveEnv } from "../lib/envs.js";
 import { checkText, readBody, foreignLanguage, MAX_CMD, MAX_MESSAGES, MAX_MESSAGE } from "../lib/input.js";
 import { commandHash } from "../lib/cache.js";
+import { deltaStream } from "../lib/sse.js";
 import { flagCandidates } from "../lib/shards.js";
 import { Budget } from "./budget.js";
 import { RateLimit } from "./ratelimit.js";
@@ -310,7 +311,7 @@ app.post("/api/chat", async (c) => {
     })().catch((error) => console.error("chat budget adjustment failed", error)),
   );
 
-  return new Response(toClient, {
+  return new Response(deltaStream(toClient), {
     headers: { "content-type": "text/event-stream", "cache-control": "no-store" },
   });
 });
@@ -456,7 +457,7 @@ app.post("/api/tldr", async (c) => {
     })().catch((error) => console.error("tldr budget adjustment failed", error)),
   );
 
-  return new Response(toClient, {
+  return new Response(deltaStream(toClient), {
     headers: { "content-type": "text/event-stream", "cache-control": "no-store" },
   });
 });
