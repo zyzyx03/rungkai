@@ -1062,11 +1062,6 @@ button.icon-btn { cursor: pointer; }
   outline-offset: 3px;
 }
 .icon-btn svg { width: 15px; height: 15px; }
-.icon-btn.is-placeholder { cursor: default; }
-.icon-btn.is-placeholder:hover {
-  color: var(--ink-dim);
-  border-color: color-mix(in srgb, var(--ink) 14%, transparent);
-}
 .theme-sun { display: block; }
 .theme-moon { display: none; }
 :root[data-theme="light"] .theme-sun { display: none; }
